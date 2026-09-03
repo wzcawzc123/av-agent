@@ -383,3 +383,93 @@
 
   if (!token()) addMsg("请先点击右上角 ⚙️ 或发送消息时输入访问口令。", "bot");
 })();
+
+  // ===== 方案工具箱（四引擎） =====
+  $("btnTools").addEventListener("click", () => { $("engines-drawer").hidden = false; });
+  $("eng-close").addEventListener("click", () => { $("engines-drawer").hidden = true; });
+
+  function engTable(headers, rows) {
+    if (!rows.length) return "<div class='item-card'>无数据</div>";
+    return `<table class="eng-table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  }
+
+  function engDownload(path) {
+    return `<div class="eng-dl"><a href="/api/download?path=${encodeURIComponent(path)}">⬇ 下载 Excel（${path.split("/").pop()}）</a></div>`;
+  }
+
+  async function runEngine(url, body, resultId) {
+    const box = $(resultId);
+    box.innerHTML = "<div class='item-card'>计算中…</div>";
+    const r = await api(url, { method: "POST", body: JSON.stringify(body) });
+    if (!r) { box.innerHTML = ""; return null; }
+    const data = await r.json();
+    if (!r.ok) { box.innerHTML = `<div class='item-card' style='color:#b91c1c'>${data.detail || "请求失败"}</div>`; return null; }
+    return data;
+  }
+
+  // 会议
+  $("m-run").addEventListener("click", async () => {
+    const code = $("m-code").value.trim();
+    if (!code) { $("m-result").innerHTML = "<div class='item-card'>请填写编码</div>"; return; }
+    const data = await runEngine("/api/engines/meeting", { code, header: {} }, "m-result");
+    if (!data) return;
+    const rows = data.rows.map(r => [r.seq, r.name, r.spec, r.brand, r.model, r.qty, r.unit, r.price]);
+    $("m-result").innerHTML = engTable(["#", "名称", "规格", "品牌", "型号", "数量", "单位", "价格"], rows) + engDownload(data.file);
+  });
+
+  // 广播
+  $("bc-run").addEventListener("click", async () => {
+    const text = $("bc-zones").value.trim();
+    if (!text) { $("bc-result").innerHTML = "<div class='item-card'>请填写分区</div>"; return; }
+    const zones = text.split("\n").map(l => l.trim()).filter(Boolean).map((line) => {
+      const parts = line.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const zone = { zone: parts.shift() };
+      for (const part of parts) {
+        const m = part.match(/^([^\d×x*]+)\s*[×x*]\s*(\d+)$/);
+        if (m) zone[m[1]] = parseInt(m[2], 10);
+      }
+      return zone;
+    });
+    const data = await runEngine("/api/engines/broadcast", { zones, header: {} }, "bc-result");
+    if (!data) return;
+    const rows = data.zones_with_power.map(z => [z.zone, z.power_w, z.amplifier]);
+    $("bc-result").innerHTML = engTable(["分区", "功率(W)×1.5", "功放选型"], rows) + engDownload(data.file);
+  });
+
+  // LED
+  $("led-run").addEventListener("click", async () => {
+    const body = {
+      want_w_m: parseFloat($("led-w").value),
+      want_h_m: parseFloat($("led-h").value),
+      model: $("led-model").value,
+      round_mode: $("led-mode").value,
+      header: {},
+    };
+    if (!body.want_w_m || !body.want_h_m) { $("led-result").innerHTML = "<div class='item-card'>请填写宽高</div>"; return; }
+    const data = await runEngine("/api/engines/led", body, "led-result");
+    if (!data) return;
+    const l = data.layout;
+    const rows = [["模组排布", `${l.count_w} × ${l.count_h}`],
+                  ["实际尺寸", `${l.actual_w_m}m × ${l.actual_h_m}m`],
+                  ["分辨率", `${l.res_w} × ${l.res_h}`],
+                  ["总像素(万)", l.total_pixels_wan],
+                  ["功耗(kW)×1.3", l.power_kw],
+                  ["电缆线径(mm²)", l.cable_mm2]];
+    $("led-result").innerHTML = engTable(["项目", "结果"], rows) + engDownload(data.file);
+  });
+
+  // 偏离表
+  $("dv-run").addEventListener("click", async () => {
+    const items = $("dv-items").value.split("\n").map(s => s.trim()).filter(Boolean);
+    const models = $("dv-models").value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    if (!items.length) { $("dv-result").innerHTML = "<div class='item-card'>请填写招标参数</div>"; return; }
+    const data = await runEngine("/api/engines/deviation",
+      { tender_items: items, models, llm_enabled: $("dv-llm").checked }, "dv-result");
+    if (!data) return;
+    const rows = data.results.map((r, i) => [items[i], r.model, r.matched_param, r.score, r.confidence]);
+    $("dv-result").innerHTML = engTable(["招标参数", "匹配型号", "匹配参数", "得分", "置信度"], rows)
+      + `<div class='item-card' style='color:${data.low_confidence ? "#b45309" : "#16a34a"}'>低置信度 ${data.low_confidence} 条（将标为「待人工确认」）</div>`
+      + engDownload(data.file);
+  });
+})();

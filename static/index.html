@@ -20,6 +20,9 @@
         <button id="btnTemplates" class="icon-btn" title="模板库" aria-label="模板库">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 3v5h5"/></svg>
         </button>
+        <button id="btnTools" class="icon-btn" title="工具箱" aria-label="工具箱">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </button>
         <button id="btnSettings" class="icon-btn" title="模型配置" aria-label="模型配置">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
@@ -115,6 +118,62 @@
     <input id="tpl-desc" placeholder="描述（可选）">
     <button id="tpl-add" class="btn-primary block">注册模板</button>
     <div id="tpl-list" class="card-list"></div>
+  </div>
+
+  <div id="engines-drawer" class="drawer" hidden>
+    <div class="drawer-head">
+      <h3>方案工具箱</h3>
+      <button id="eng-close" class="btn-ghost close-btn" aria-label="关闭">✕</button>
+    </div>
+    <p class="drawer-hint">会议选型 / 广播计算 / LED 排布 / 偏离表，直接生成 Excel 清单</p>
+
+    <div id="engine-meeting" class="engine-card">
+      <div class="engine-title">🗂 会议选型</div>
+      <div class="engine-desc">编码格式：长-宽-高-舞台宽-舞台深-类型-配置-特殊-话筒-天线（段可省略，0 表示无）<br>类型：1圆桌 2阶梯 3报告厅；配置：1高 2中 3低</div>
+      <input id="m-code" placeholder="如 12-10-5-0-0-1-2-" value="12-10-5-0-0-1-2-">
+      <button class="btn-primary block" id="m-run">生成会议清单</button>
+      <div id="m-result" class="eng-result"></div>
+    </div>
+
+    <div id="engine-broadcast" class="engine-card">
+      <div class="engine-title">📢 广播计算</div>
+      <div class="engine-desc">每行一个分区：分区名,型号×数量,型号×数量…（如 1F大厅,T-601×24,T-105×12）</div>
+      <textarea id="bc-zones" rows="3" placeholder="1F大厅,T-601×24,T-105×12&#10;2F走廊,T-105×8"></textarea>
+      <button class="btn-primary block" id="bc-run">计算分区功率与功放</button>
+      <div id="bc-result" class="eng-result"></div>
+    </div>
+
+    <div id="engine-led" class="engine-card">
+      <div class="engine-title">🖥 LED 排布</div>
+      <div class="engine-desc">输入意向尺寸与屏体型号，自动取整排布并计算功耗/电缆</div>
+      <div class="led-row">
+        <input id="led-w" type="number" placeholder="宽(m)" value="6">
+        <input id="led-h" type="number" placeholder="高(m)" value="3.5">
+        <select id="led-model">
+          <option value="TV-PH250-YZ">TV-PH250-YZ</option>
+          <option value="TV-PH200-YZ">TV-PH200-YZ</option>
+          <option value="TV-PH150-YZ">TV-PH150-YZ</option>
+          <option value="TV-PH100-YZ">TV-PH100-YZ</option>
+        </select>
+        <select id="led-mode">
+          <option value="就近">就近取整</option>
+          <option value="向上">向上取整</option>
+          <option value="向下">向下取整</option>
+        </select>
+      </div>
+      <button class="btn-primary block" id="led-run">计算 LED 排布</button>
+      <div id="led-result" class="eng-result"></div>
+    </div>
+
+    <div id="engine-deviation" class="engine-card">
+      <div class="engine-title">📋 偏离表</div>
+      <div class="engine-desc">每行一条招标参数；可选限定型号（逗号分隔，留空则全库匹配）</div>
+      <textarea id="dv-items" rows="3" placeholder="1、8寸全频音箱&#10;2、阻抗8Ω&#10;3、900W功放"></textarea>
+      <input id="dv-models" placeholder="限定型号（可选，逗号分隔）">
+      <label class="chk"><input type="checkbox" id="dv-llm"> 启用 LLM 语义增强（需已配置模型 Key）</label>
+      <button class="btn-primary block" id="dv-run">生成偏离表</button>
+      <div id="dv-result" class="eng-result"></div>
+    </div>
   </div>
 
   <script src="/app.js"></script>

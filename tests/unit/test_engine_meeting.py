@@ -43,15 +43,16 @@ def test_select_devices_meeting(tmp_path):
     engine = get_engine(f"sqlite:///{tmp_path}/t.db")
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
-        s.add(Product(name="全频音箱", model="TK-L208", brand="itc",
-                      description="8寸全频音箱"))
-        s.add(Product(name="功放", model="TA-2900", brand="itc", description="2×900W"))
+        s.add(Product(name="8寸多功能专业音箱", model="MH-VS08", brand="MAXHUB",
+                      description="8寸两分频无源音箱"))
+        s.add(Product(name="2*400W数字功放", model="MH-L240", brand="MAXHUB",
+                      description="双通道数字功放"))
         s.commit()
         seed_selection_rules(s)
         rows = select_devices(s, parse_code("1-10-5-"))
         assert len(rows) >= 5
-        tk = [r for r in rows if r["model"] == "TK-L208"][0]
-        assert tk["name"] == "全频音箱" and tk["qty"] == 4
+        tk = [r for r in rows if r["model"] == "MH-VS08"][0]
+        assert tk["name"] == "8寸多功能专业音箱" and tk["qty"] == 2
         assert tk["price"] == 0
 
 

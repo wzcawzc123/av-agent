@@ -63,3 +63,27 @@ def test_select_devices_unknown_scene_falls_back(tmp_path):
         seed_selection_rules(s)
         rows = select_devices(s, parse_code("88-10-5-"))
         assert len(rows) >= 5  # 回落到圆桌规则
+
+
+def test_area_tiers_change_speaker_qty(tmp_path):
+    """面积分档：同一圆桌中配，面积越大主音箱数量/型号升级，且不产生重复选型。"""
+    engine = get_engine(f"sqlite:///{tmp_path}/t.db")
+    Base.metadata.create_all(engine)
+    with get_session(engine) as s:
+        seed_selection_rules(s)
+        small = select_devices(s, parse_code("10-8-5-"))    # 80 平
+        mid = select_devices(s, parse_code("17-10-5-"))     # 170 平
+        large = select_devices(s, parse_code("22-13-5-"))   # 286 平
+
+    def speaker(rows):
+        hit = [r for r in rows if r["role"] == "主音箱"]
+        assert len(hit) == 1, f"主音箱规则应唯一，实际 {len(hit)}"
+        return hit[0]
+
+    s1, s2, s3 = speaker(small), speaker(mid), speaker(large)
+    assert (s1["model"], s1["qty"]) == ("MH-VS08", 2)
+    assert (s2["model"], s2["qty"]) == ("MH-VS10", 4)
+    assert (s3["model"], s3["qty"]) == ("MH-VS12", 6)
+    # 功放不随面积分档，三个档位一致
+    amps = {r["model"] for r in small + mid + large if r["role"] == "功放"}
+    assert amps == {"MH-L240"}

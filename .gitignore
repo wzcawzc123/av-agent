@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# 数据与密钥（勿入库）
+data/
+*.db
+*.sqlite3
+secrets.bin
+master.key
+
+# 输出文件
+output/
+AV-Agent-Output/
+
+# 模板上传临时目录
+uploads/
+tmp/
+
+# IDE / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+logs/
+
+# 环境变量
+.env
+.env.local

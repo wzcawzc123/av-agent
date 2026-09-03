@@ -385,3 +385,5 @@ body {
 .eng-table td { padding: 6px 8px; border-top: 1px solid #f3f4f6; word-break: break-all; }
 .eng-dl { margin-top: 8px; }
 .eng-dl a { display: inline-block; padding: 8px 14px; background: #007aff; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; }
+
+.chat-dl { display: inline-block; margin-top: 8px; margin-right: 8px; padding: 6px 12px; background: #007aff; color: #fff; border-radius: 8px; text-decoration: none; font-size: 13px; }

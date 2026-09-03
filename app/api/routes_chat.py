@@ -37,6 +37,22 @@ async def chat(body: ChatIn):
     st, slots = sess["state"], sess["slots"]
     if st.status == "IDLE":
         st.transition("COLLECTING")
+
+    # 引擎意图直通：命中会议/广播/LED/偏离表时无需模型配置，直接执行并返回
+    from app.engines.intent.detect import detect_engine_intent
+    from app.engines.intent.runner import engine_summary, run_engine
+
+    intent = detect_engine_intent(body.text)
+    if intent:
+        result = run_engine(intent["engine"], intent["params"])
+        return {
+            "reply": engine_summary(intent["engine"], result),
+            "project_id": pid,
+            "status": st.status,
+            "engine": intent["engine"],
+            "files": [result["file"]],
+        }
+
     cfg = load_model_config()
     if not cfg.get("provider") or not cfg.get("api_key"):
         return {
@@ -46,7 +62,16 @@ async def chat(body: ChatIn):
             "need_config": True,
         }
     provider = await _get_provider(cfg)
-    new_slots = await parse_intent(provider, body.text)
+    try:
+        new_slots = await parse_intent(provider, body.text)
+    except Exception:
+        return {
+            "reply": "调用模型失败，请检查 API Key 与网络后重试；也可以在工具箱中直接使用会议/广播/LED/偏离表引擎。",
+            "project_id": pid,
+            "status": st.status,
+            "need_config": True,
+            "engine_error": True,
+        }
     for k, v in new_slots.items():
         if k != "missing" and v not in (None, [], ""):
             slots[k] = v

@@ -63,7 +63,12 @@
     if (!r) return;
     const data = await r.json();
     projectId = data.project_id;
-    addMsg(data.reply, "bot");
+    let replyHtml = data.reply.replace(/\n/g, "<br>");
+    if (data.files && data.files.length) {
+      replyHtml += "<br>" + data.files.map(f =>
+        `<a href="/api/download?path=${encodeURIComponent(f)}" class="chat-dl">⬇ 下载 ${f.split("/").pop()}</a>`).join(" ");
+    }
+    addMsg(replyHtml, "bot");
     if (data.status === "CONFIRMING") {
       confirmCard.hidden = false;
       confirmCard.innerHTML = `<div>${data.reply.replace(/\n/g, "<br>")}</div>

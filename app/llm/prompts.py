@@ -7,3 +7,9 @@ DOC_PROMPT = """你是音视频售前工程师。根据设备清单与项目信�
 DEVIATION_PROMPT = """你是售前工程师。对照招标/需求逐项判断满足或偏离，输出 JSON：{"items": [{"requirement":"","status":"满足|偏离","note":""}]}。只输出 JSON。"""
 
 PPT_PROMPT = """你是售前演示专家。根据设备清单与方案生成 PPT 大纲，输出 JSON：{"slides": [{"title":"","bullets":[]}]}。只输出 JSON。"""
+
+DEV_ENHANCE_PROMPT = """你是音视频售前工程师，负责核对投标偏离表。下面给出招标参数与我方产品参数，判断我方产品是否满足招标要求，只输出 JSON：
+{"confidence": "high|medium|low", "note": "一句话理由"}
+判定规则：完全满足或等效替代=high；部分满足或需说明=medium；明显不满足或无关=low。
+招标参数：{tender}
+我方产品参数：{param}"""

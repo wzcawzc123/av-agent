@@ -62,3 +62,127 @@ def download(path: str):
     if not real.startswith(out_dir + os.sep) or not os.path.isfile(real):
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(real, filename=os.path.basename(real))
+
+
+# ---- 方案工具引擎端点 ----
+
+class EngineDeviationIn(BaseModel):
+    tender_items: list[str]
+    models: list[str] = []
+    llm_enabled: bool = False
+
+
+class EngineMeetingIn(BaseModel):
+    code: str
+    header: dict = {}
+
+
+class EngineBroadcastIn(BaseModel):
+    zones: list[dict]
+    header: dict = {}
+
+
+class EngineLedIn(BaseModel):
+    want_w_m: float
+    want_h_m: float
+    model: str
+    round_mode: str = "就近"
+    header: dict = {}
+
+
+@router.post("/engines/deviation")
+def engine_deviation(body: EngineDeviationIn):
+    from app.config import settings
+    from app.db.session import get_engine, get_session
+    from app.engines.deviation.db_bridge import build_candidates_from_db
+    from app.engines.deviation.llm_enhance import enhance_with_llm
+    from app.engines.deviation.matcher import match_tender_to_product
+    from app.generators.excel_generator import build_deviation_sheet
+
+    with get_session(get_engine()) as s:
+        cands = build_candidates_from_db(s, body.models)
+    results = match_tender_to_product(body.tender_items, cands)
+    results = enhance_with_llm(results, body.tender_items, llm_enabled=body.llm_enabled)
+    os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
+    out = f"{settings.OUTPUT_DIR}/engines/deviation.xlsx"
+    rows = [{"device": r.model, "tender_param": t, "bid_param": r.matched_param,
+             "deviation": "" if r.confidence != "low" else "待人工确认",
+             "note": r.confidence}
+            for t, r in zip(body.tender_items, results)]
+    build_deviation_sheet(out, {}, rows)
+    low = sum(1 for r in results if r.confidence == "low")
+    return {"file": out, "results": [vars(r) for r in results], "low_confidence": low}
+
+
+@router.post("/engines/meeting")
+def engine_meeting(body: EngineMeetingIn):
+    from app.config import settings
+    from app.db.session import get_engine, get_session
+    from app.engines.meeting.codec import parse_code
+    from app.engines.meeting.rules import seed_selection_rules
+    from app.engines.meeting.selector import select_devices
+    from app.generators.excel_generator import build_meeting_list
+
+    os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
+    with get_session(get_engine()) as s:
+        seed_selection_rules(s)
+        rows = select_devices(s, parse_code(body.code))
+    out = f"{settings.OUTPUT_DIR}/engines/meeting.xlsx"
+    build_meeting_list(out, body.header, rows)
+    return {"file": out, "rows": rows}
+
+
+@router.post("/engines/broadcast")
+def engine_broadcast(body: EngineBroadcastIn):
+    from app.config import settings
+    from app.db.models import AmplifierTier, SpeakerSpec
+    from app.db.session import get_engine, get_session
+    from app.engines.broadcast.calculator import compute_zone_power, select_amplifier
+    from app.engines.broadcast.rules import seed_amplifier_tiers, seed_speaker_specs
+    from app.generators.excel_generator import build_broadcast_list
+
+    os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
+    with get_session(get_engine()) as s:
+        seed_speaker_specs(s)
+        seed_amplifier_tiers(s)
+        specs = {sp.model: sp.power_w for sp in s.query(SpeakerSpec).all()}
+        tiers = s.query(AmplifierTier).all()
+    zones_with_power = []
+    for z in body.zones:
+        z = dict(z)
+        zone_speakers = {k: v for k, v in z.items() if k not in ("zone", "power_w", "amplifier")}
+        power = compute_zone_power(zone_speakers, specs) * 1.5  # 1.5 倍余量
+        z["power_w"] = round(power, 2)
+        z["amplifier"] = select_amplifier(power, tiers)
+        zones_with_power.append(z)
+    rows = [{"name": model, "model": model, "qty": qty, "unit": "只"}
+            for z in body.zones for model, qty in z.items()
+            if model not in ("zone", "power_w", "amplifier")]
+    out = f"{settings.OUTPUT_DIR}/engines/broadcast.xlsx"
+    build_broadcast_list(out, body.header, zones_with_power, rows)
+    return {"file": out, "zones_with_power": zones_with_power, "rows": rows}
+
+
+@router.post("/engines/led")
+def engine_led(body: EngineLedIn):
+    from fastapi import HTTPException
+
+    from app.config import settings
+    from app.db.models import LedPanelSpec
+    from app.db.session import get_engine, get_session
+    from app.engines.led.layout import calc_layout
+    from app.engines.led.rules import seed_led_specs
+    from app.generators.excel_generator import build_led_list
+
+    os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
+    with get_session(get_engine()) as s:
+        seed_led_specs(s)
+        panel = s.query(LedPanelSpec).filter_by(model=body.model).first()
+    if not panel:
+        raise HTTPException(status_code=404, detail=f"屏体规格不存在: {body.model}")
+    layout = calc_layout(body.want_w_m, body.want_h_m, panel, body.round_mode)
+    rows = [{"name": f"{body.model}模组", "model": body.model,
+             "qty": layout["count_w"] * layout["count_h"], "unit": "块"}]
+    out = f"{settings.OUTPUT_DIR}/engines/led.xlsx"
+    build_led_list(out, body.header, layout, rows)
+    return {"file": out, "layout": layout, "rows": rows}

@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.config import settings
 from app.llm import provider_store
+from app.version import VERSION
 from app.api import routes_settings as rs
 
 
@@ -74,7 +75,7 @@ def test_check_update_no_update(client, monkeypatch):
     r = client.get("/api/update/check", headers=_auth(client))
     assert r.status_code == 200
     data = r.json()
-    assert data["current_version"] == "1.0.0"
+    assert data["current_version"] == VERSION
     assert data["has_update"] is False
 
 

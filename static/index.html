@@ -1,5 +1,35 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="UTF-8"><title>AV Agent</title></head>
-<body><div id="chat-app">AV Agent 加载中…</div></body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AV Agent</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>🎧 AV Agent</h1>
+    <button id="btnSettings">⚙️</button>
+  </header>
+  <main id="chat-app">
+    <div id="chat-log"></div>
+    <div id="confirm-card" hidden></div>
+    <div id="progress-bar" hidden><div id="progress-fill"></div><span id="progress-text"></span></div>
+    <div id="file-list"></div>
+    <form id="chat-form">
+      <input id="chat-input" placeholder="例如：100平会议室方案" autocomplete="off">
+      <button type="submit">发送</button>
+    </form>
+  </main>
+  <div id="settings-drawer" hidden>
+    <h3>模型配置</h3>
+    <select id="cfg-provider"></select>
+    <input id="cfg-key" type="password" placeholder="API Key">
+    <input id="cfg-model" placeholder="模型名">
+    <input id="cfg-base" placeholder="Base URL（可选）">
+    <button id="cfg-save">保存</button>
+    <button id="cfg-close">关闭</button>
+  </div>
+  <script src="/app.js"></script>
+</body>
 </html>

@@ -3,27 +3,25 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-_engine = None
-_SessionLocal = None
+_engines: dict[str, object] = {}
 
 
 def get_engine(url: str | None = None):
-    """返回单例 engine；首次调用时可用显式 url 覆盖默认（测试用内存/临时库）。"""
-    global _engine, _SessionLocal
-    if _engine is None:
-        if url is None:
-            from app.config import settings
+    """按 URL 缓存 engine；url 缺省时使用应用默认数据库。"""
+    if url is None:
+        from app.config import settings
 
-            url = f"sqlite:///{settings.DB_PATH}"
-        _engine = create_engine(url, connect_args={"check_same_thread": False})
-        _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
-    return _engine
+        url = f"sqlite:///{settings.DB_PATH}"
+    if url not in _engines:
+        _engines[url] = create_engine(url, connect_args={"check_same_thread": False})
+    return _engines[url]
 
 
 @contextmanager
 def get_session(engine=None):
     engine = engine or get_engine()
-    sess = _SessionLocal()
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    sess = SessionLocal()
     try:
         yield sess
         sess.commit()

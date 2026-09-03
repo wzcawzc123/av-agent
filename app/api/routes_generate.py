@@ -1,7 +1,8 @@
 import json
+import os
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from app.api.deps import require_token
@@ -50,3 +51,14 @@ async def task_stream(task_id: str):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@router.get("/download")
+def download(path: str):
+    from app.config import settings
+
+    real = os.path.realpath(path)
+    out_dir = os.path.realpath(settings.OUTPUT_DIR)
+    if not real.startswith(out_dir + os.sep) or not os.path.isfile(real):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return FileResponse(real, filename=os.path.basename(real))

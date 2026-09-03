@@ -17,11 +17,12 @@ header {
   flex-shrink: 0;
 }
 header h1 { font-size: 18px; }
-#btnSettings {
+.header-btns { display: flex; gap: 8px; }
+#btnSettings, #btnProducts, #btnTemplates {
   background: rgba(255,255,255,.15);
   border: none;
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   width: 38px; height: 38px;
   border-radius: 10px;
 }
@@ -112,7 +113,7 @@ main#chat-app {
   background: #1e3a8a;
   color: #fff;
 }
-#settings-drawer {
+.drawer {
   position: fixed;
   right: 0; top: 0; bottom: 0;
   width: min(86vw, 340px);
@@ -123,19 +124,50 @@ main#chat-app {
   flex-direction: column;
   gap: 10px;
   z-index: 50;
+  overflow-y: auto;
 }
-#settings-drawer input, #settings-drawer select {
+.drawer h3 { font-size: 16px; margin-bottom: 2px; }
+.drawer input, .drawer select {
   width: 100%;
   border: 1px solid #d1d5db;
   border-radius: 10px;
   padding: 10px;
   font-size: 14px;
 }
-#settings-drawer button {
+.drawer button {
   border: none;
   border-radius: 10px;
   padding: 10px;
   font-size: 14px;
 }
-#cfg-save { background: #1e3a8a; color: #fff; }
-#cfg-close { background: #e5e7eb; color: #374151; }
+.drawer .btn-ghost { background: #e5e7eb; color: #374151; }
+#cfg-save, #prod-upload, #tpl-add { background: #1e3a8a; color: #fff; }
+.drawer-hint { font-size: 12px; color: #6b7280; line-height: 1.5; }
+.drawer-result { font-size: 13px; color: #16a34a; min-height: 18px; }
+#prod-list, #tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+}
+.item-card {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.item-card .item-title { font-weight: 600; color: #1e3a8a; }
+.item-card .item-meta { color: #6b7280; font-size: 12px; margin-top: 2px; }
+.item-card .item-del {
+  margin-top: 6px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+}

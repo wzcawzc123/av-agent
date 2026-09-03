@@ -9,7 +9,11 @@
 <body>
   <header>
     <h1>🎧 AV Agent</h1>
-    <button id="btnSettings">⚙️</button>
+    <div class="header-btns">
+      <button id="btnProducts" title="产品库">📦</button>
+      <button id="btnTemplates" title="模板库">🗂️</button>
+      <button id="btnSettings" title="模型配置">⚙️</button>
+    </div>
   </header>
   <main id="chat-app">
     <div id="chat-log"></div>
@@ -21,15 +25,48 @@
       <button type="submit">发送</button>
     </form>
   </main>
-  <div id="settings-drawer" hidden>
+
+  <div id="settings-drawer" class="drawer" hidden>
     <h3>模型配置</h3>
     <select id="cfg-provider"></select>
     <input id="cfg-key" type="password" placeholder="API Key">
     <input id="cfg-model" placeholder="模型名">
     <input id="cfg-base" placeholder="Base URL（可选）">
     <button id="cfg-save">保存</button>
-    <button id="cfg-close">关闭</button>
+    <button id="cfg-close" class="btn-ghost">关闭</button>
   </div>
+
+  <div id="products-drawer" class="drawer" hidden>
+    <h3>产品库</h3>
+    <p class="drawer-hint">上传公司产品 Excel（表头：产品名称 | 型号 | 参数 | 底价 | 市场价 | 分类）</p>
+    <input id="prod-file" type="file" accept=".xlsx,.xls">
+    <button id="prod-upload">上传导入</button>
+    <div id="prod-result" class="drawer-result"></div>
+    <div id="prod-list"></div>
+    <button id="prod-close" class="btn-ghost">关闭</button>
+  </div>
+
+  <div id="templates-drawer" class="drawer" hidden>
+    <h3>模板库</h3>
+    <p class="drawer-hint">注册模板；常规配置模板按面积自动匹配</p>
+    <input id="tpl-name" placeholder="模板名称">
+    <select id="tpl-type">
+      <option value="config">常规配置模板（按面积）</option>
+      <option value="doc">文字方案模板(Word)</option>
+      <option value="ppt">PPT 母版</option>
+      <option value="deviation">偏离表模板(Excel)</option>
+    </select>
+    <div id="tpl-config-fields">
+      <input id="tpl-area" type="number" placeholder="适用面积（㎡），如 100">
+      <input id="tpl-scene" placeholder="场景（可选），如 会议室">
+    </div>
+    <input id="tpl-path" placeholder="文件路径，如 D:/tpl/方案模板.docx">
+    <input id="tpl-desc" placeholder="描述（可选）">
+    <button id="tpl-add">注册模板</button>
+    <div id="tpl-list"></div>
+    <button id="tpl-close" class="btn-ghost">关闭</button>
+  </div>
+
   <script src="/app.js"></script>
 </body>
 </html>

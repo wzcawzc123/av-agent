@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 from app.api.deps import require_token
 from app.db.session import get_session
-from app.db.models import Product, Template
+from app.db.models import Product, Template, ConfigTemplate
 from app.db.product_importer import import_products
-from app.db.template_store import save_template
+from app.db.template_store import save_template, save_config_template
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 
@@ -39,29 +39,46 @@ async def upload_products(file: UploadFile = File(...)):
 def list_templates():
     with get_session() as s:
         rows = s.query(Template).order_by(Template.id.desc()).limit(200).all()
-        return [{"id": t.id, "name": t.name, "type": t.type,
-                 "description": t.description, "file_path": t.file_path} for t in rows]
+        items = [{"id": t.id, "name": t.name, "type": t.type,
+                  "description": t.description, "file_path": t.file_path,
+                  "area": None, "scene": ""} for t in rows]
+        ct = s.query(ConfigTemplate).order_by(ConfigTemplate.id.desc()).limit(100).all()
+        items += [{"id": c.id, "name": c.name, "type": "config",
+                   "description": f"面积 {c.area}㎡", "file_path": "",
+                   "area": c.area, "scene": c.scene} for c in ct]
+        return items
 
 
 class TemplateIn(BaseModel):
     name: str
     type: str
-    file_path: str
+    file_path: str = ""
     description: str = ""
+    area: int = 0
+    scene: str = ""
 
 
 @router.post("/templates")
 def create_template(body: TemplateIn):
     with get_session() as s:
+        if body.type == "config":
+            c = save_config_template(s, body.name, body.area, body.scene, {})
+            return {"id": c.id}
         t = save_template(s, body.name, body.type, body.file_path, body.description)
         return {"id": t.id}
 
 
 @router.delete("/templates/{template_id}")
-def delete_template(template_id: int):
+def delete_template(template_id: int, type: str = "doc"):
     with get_session() as s:
-        t = s.query(Template).filter_by(id=template_id).first()
-        if not t:
-            raise HTTPException(status_code=404, detail="模板不存在")
-        s.delete(t)
+        if type == "config":
+            c = s.query(ConfigTemplate).filter_by(id=template_id).first()
+            if not c:
+                raise HTTPException(status_code=404, detail="模板不存在")
+            s.delete(c)
+        else:
+            t = s.query(Template).filter_by(id=template_id).first()
+            if not t:
+                raise HTTPException(status_code=404, detail="模板不存在")
+            s.delete(t)
     return {"ok": True}

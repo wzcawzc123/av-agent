@@ -95,6 +95,8 @@ class SelectionRule(Base):
     model: Mapped[str] = mapped_column(String(100))
     qty: Mapped[int] = mapped_column(Integer, default=1)
     unit: Mapped[str] = mapped_column(String(20), default="台")
+    mic_level: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
+    antenna_level: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 

@@ -1,45 +1,24 @@
-"""轻量 schema 迁移：让已有 SQLite 库与当前模型对齐。
-
-- 旧版列名 low_price -> base_price（自动重命名，数据保留）；
-- 模型新增列（如 brand/description）自动 ADD COLUMN；
-- 不动已有表结构以外的数据。
-"""
+"""轻量 schema 迁移：SQLite 上按需补列（不引入 Alembic）。"""
 from sqlalchemy import text
 
-from app.db.models import Product
 
-_COLUMN_DDL = {
-    "name": "VARCHAR(200)",
-    "model": "VARCHAR(100)",
-    "brand": "VARCHAR(100) DEFAULT ''",
-    "description": "TEXT DEFAULT ''",
-    "params_json": "TEXT DEFAULT '{}'",
-    "base_price": "FLOAT DEFAULT 0",
-    "low_price": "FLOAT DEFAULT 0",
-    "market_price": "FLOAT DEFAULT 0",
-    "category": "VARCHAR(100) DEFAULT ''",
-    "updated_at": "DATETIME",
-}
-
-_RENAME = {"low_price": "base_price"}
-
-
-def ensure_schema(engine) -> None:
+def _existing_columns(engine, table: str) -> set[str]:
     with engine.connect() as conn:
-        # 1) 旧列名重命名（SQLite 支持 RENAME COLUMN，版本 >= 3.25）
-        try:
-            existing = {r[1] for r in conn.execute(text("PRAGMA table_info(products)"))}
-        except Exception:
-            conn.rollback()
-            return
-        for old, new in _RENAME.items():
-            if old in existing and new not in existing:
-                conn.execute(text(f"ALTER TABLE products RENAME COLUMN {old} TO {new}"))
-        # 2) 按模型补齐缺失列
-        existing = {r[1] for r in conn.execute(text("PRAGMA table_info(products)"))}
-        model_cols = {c.name for c in Product.__table__.columns}
-        for col in model_cols:
-            if col in existing or col not in _COLUMN_DDL:
-                continue
-            conn.execute(text(f"ALTER TABLE products ADD COLUMN {col} {_COLUMN_DDL[col]}"))
-        conn.commit()
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+    return {r[1] for r in rows}
+
+
+def ensure_schema(engine):
+    """为既有表补齐新增列（幂等）。"""
+    cols = _existing_columns(engine, "selection_rules")
+    additions = []
+    if "mic_level" not in cols:
+        additions.append("mic_level VARCHAR(20)")
+    if "antenna_level" not in cols:
+        additions.append("antenna_level VARCHAR(20)")
+    if additions:
+        with engine.connect() as conn:
+            for ddl in additions:
+                conn.execute(text(f"ALTER TABLE selection_rules ADD COLUMN {ddl}"))
+            conn.commit()
+        print(f"[migrate] selection_rules 新增列: {additions}")

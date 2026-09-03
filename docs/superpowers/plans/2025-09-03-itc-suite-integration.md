@@ -943,3 +943,38 @@ def engine_deviation(body: EngineDeviationIn):
 ---
 
 **（方案完）**
+
+## P0：数据模型扩展
+
+### Task 0.1: 引擎相关新表
+
+**Files:**
+- Modify: `app/db/models.py`, `app/db/migrate.py`
+- Test: `tests/unit/test_engine_models.py`（新增，校验新表可建、可写读）
+
+**Interfaces:**（SQLAlchemy 2.0 风格，与现有 Base 一致）
+
+```python
+class SelectionRule(Base):
+    __tablename__ = "selection_rules"
+    id, scene(str), area_min(float), area_max(float), config_level(str),
+    device_role(str), model(str), qty(int), unit(str), updated_at
+
+class SpeakerSpec(Base):
+    __tablename__ = "speaker_specs"
+    id, model(str, unique), power_w(float), category(str)
+
+class LedPanelSpec(Base):
+    __tablename__ = "led_panel_specs"
+    id, model(str, unique), module_w_mm(int), module_h_mm(int),
+    res_w(int), res_h(int), type(str)
+
+class AmplifierTier(Base):
+    __tablename__ = "amplifier_tiers"
+    id, min_w(float), max_w(float), model(str)
+```
+
+- [ ] **Step 1: 写失败测试**：用 get_engine(sqlite tmp) + Base.metadata.create_all 建表，插入/查询 4 张新表各一条，断言成功
+- [ ] **Step 2: 确认失败**（ImportError: 无 SelectionRule）→ **Step 3: 实现**：models.py 加 4 个类；main.py 已自动 create_all，migrate 无需额外 DDL（新表由 create_all 创建）
+- [ ] **Step 4: 测试通过 → Step 5: 提交** `git commit -am "feat(db): engine tables (selection rules, speaker/led specs, amp tiers)"`
+

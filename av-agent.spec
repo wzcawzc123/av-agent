@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller 打包配置：python pyinstaller --clean --noconfirm av-agent.spec"""
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 hiddenimports = (
     collect_submodules("uvicorn")
@@ -12,13 +12,25 @@ hiddenimports = (
     + collect_submodules("docx")
     + collect_submodules("pptx")
     + collect_submodules("cryptography")
+    # 桌面模式（PyWebView + 托盘）
+    + collect_submodules("webview")
+    + collect_submodules("pystray")
+    + collect_submodules("PIL")
+    + collect_submodules("clr_loader")
+)
+
+datas = (
+    [("static", "static")]
+    # pywebview 的 Windows 后端需要 WebView2Loader 等原生资源
+    + collect_data_files("webview")
+    + collect_data_files("clr_loader")
 )
 
 a = Analysis(
     ["exe_entry.py"],
     pathex=["."],
     binaries=[],
-    datas=[("static", "static")],
+    datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

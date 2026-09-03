@@ -37,41 +37,45 @@ av-agent/
 │   ├── generators/     # Word/Excel/PPT 生成 + PDF 转换
 │   ├── tasks/          # 异步任务队列 + SSE 进度
 │   ├── db/             # SQLite 模型、产品导入、模板存储
-│   └── security/       # API Key 加密、访问鉴权
-├── data/               # SQLite 数据库、密钥、输出文件（git 忽略）
+│   └── security/       # 访问鉴权、密钥工具
+├── data/               # 运行时生成：数据库、密钥、模型配置（git 忽略）
+├── output/             # 生成文件输出（git 忽略）
+├── uploads/            # 上传文件暂存（git 忽略）
 ├── tests/
 │   ├── unit/           # 单元测试
-│   ├── integration/    # 集成测试
 │   ├── e2e/            # 端到端测试
-│   └── fixtures/       # 样例产品/模板/ mock LLM 响应
-├── docs/
-│   └── superpowers/specs/  # 设计文档
+│   └── fixtures/       # 样例产品 / mock LLM 响应
+├── docs/               # 功能说明书、使用说明书、设计文档
 ├── README.md
 └── requirements.txt
 ```
 
-## 快速开始（规划中）
+## 快速开始
 
 ```bash
-# 安装依赖
+# 安装依赖（需 Python ≥ 3.12）
 pip install -r requirements.txt
 
-# 启动服务（默认 0.0.0.0:8000）
-python -m app.main
+# 启动服务（0.0.0.0:8000，务必设置访问口令）
+AV_ACCESS_TOKEN=你的口令 uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-# 手机浏览器访问
+# 手机浏览器访问（手机与电脑同一局域网）
 # http://<电脑局域网IP>:8000
 ```
 
-## 设计文档
+首次使用：右上角 ⚙️ 配置模型（Provider + API Key）→（可选）上传产品 Excel → 对话描述需求 → 确认后自动生成并下载。
 
-- [音视频售前工作流 Agent 设计文档](docs/superpowers/specs/2026-09-04-av-sales-workflow-agent-design.md)
+## 文档
+
+- [功能说明书](docs/功能说明书.md) — 功能清单、系统架构、数据模型、API 参考
+- [使用说明书](docs/使用说明书.md) — 部署、配置、日常操作、常见问题
+- [设计文档](docs/superpowers/specs/2026-09-04-av-sales-workflow-agent-design.md)
 
 ## 状态
 
 - [x] 设计文档 v0.1（2026-09-04）
-- [ ] M1 骨架：FastAPI + SQLite + 状态机 + 基础对话
-- [ ] M2 数据：产品 Excel 导入、模板库管理
-- [ ] M3 生成：LLM 适配 + Word/Excel/PPT + PDF 转换
-- [ ] M4 体验：SSE 进度、项目管理、文件下载、鉴权
-- [ ] M5 加固：单测全覆盖、错误处理、文档
+- [x] M1 骨架：FastAPI + SQLite + 状态机 + 基础对话
+- [x] M2 数据：产品 Excel 导入、模板库管理
+- [x] M3 生成：LLM 适配 + Word/Excel/PPT + PDF 转换
+- [x] M4 体验：SSE 进度、项目管理、文件下载、鉴权
+- [x] M5 加固：单测全覆盖（37 用例通过）、错误处理、文档

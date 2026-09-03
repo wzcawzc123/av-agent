@@ -980,3 +980,16 @@ class AmplifierTier(Base):
 - [ ] **Step 2: 确认失败**（ImportError: 无 SelectionRule）→ **Step 3: 实现**：models.py 加 4 个类；main.py 已自动 create_all，migrate 无需额外 DDL（新表由 create_all 创建）
 - [ ] **Step 4: 测试通过 → Step 5: 提交** `git commit -am "feat(db): engine tables (selection rules, speaker/led specs, amp tiers)"`
 
+
+### 执行补充：面积分档（2025-09-04）
+
+会议引擎种子升级为面积分档：主音箱/功放按会议室面积三档（0-150 / 150-250 / 250+ 平）自动升级，
+对应业务口径「100平 / 200平 / 300平成套方案」：
+
+- 圆桌中配：80平→MH-VS08×2，170平→MH-VS10×4，286平→MH-VS12×6；功放固定 MH-L240。
+- 阶梯/报告厅按同口径分档（MH-VS10→VS12、PAS15），高配报告厅功放 MH-V5-PA2100×2。
+- 话筒段（1=手持/2=无线会议/3=数字会议）与天线段（仅配无线话筒）保持三场景通用。
+- seed 幂等升级：旧 0-9999 主音箱规则按 (scene, config, role) 命中分档时清理，其余保留；
+  话筒/天线规则含 mic/ant 约束的旧行就地补字段。
+- 测试：新增 `test_area_tiers_change_speaker_qty`（80/170/286 平三档断言 + 功放唯一性），
+  配置梯度断言同步面积档口径（120平高配 VS10×2、低配 VS06×2）。

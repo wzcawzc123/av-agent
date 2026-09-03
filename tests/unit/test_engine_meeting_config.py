@@ -37,7 +37,7 @@ def test_high_config_uses_bigger_devices(tmp_path, monkeypatch):
     engine = _seed(tmp_path, monkeypatch)
     rows = _rows(engine, "12-10-5-0-0-1-1-")
     models = {r["role"]: r["model"] for r in rows}
-    assert models["主音箱"] == "MH-VS10" and rows[0]["qty"] == 4
+    assert models["主音箱"] == "MH-VS10" and rows[0]["qty"] == 2  # 120平落 0-150 档
     assert models["功放"] == "MH-L440"
 
 
@@ -45,7 +45,7 @@ def test_low_config_uses_smaller_devices(tmp_path, monkeypatch):
     engine = _seed(tmp_path, monkeypatch)
     rows = _rows(engine, "12-10-5-0-0-1-3-")
     models = {r["role"]: r["model"] for r in rows}
-    assert models["主音箱"] == "MH-VS08" and rows[0]["qty"] == 2
+    assert models["主音箱"] == "MH-VS06" and rows[0]["qty"] == 2  # 低配 120平 用 6.5寸
     assert models["功放"] == "MH-L215"
 
 

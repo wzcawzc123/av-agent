@@ -129,8 +129,37 @@
 
     <div id="engine-meeting" class="engine-card">
       <div class="engine-title">🗂 会议选型</div>
-      <div class="engine-desc">编码格式：长-宽-高-舞台宽-舞台深-类型-配置-特殊-话筒-天线（段可省略，0 表示无）<br>类型：1圆桌 2阶梯 3报告厅；配置：1高 2中 3低</div>
-      <input id="m-code" placeholder="如 12-10-5-0-0-1-2-" value="12-10-5-0-0-1-2-">
+      <div class="engine-desc">填写会议室尺寸与选型偏好，自动生成设备清单（也可在「高级」粘贴 itc 编码）</div>
+      <div class="led-row">
+        <input id="m-len" type="number" placeholder="长(m)" value="12">
+        <input id="m-wid" type="number" placeholder="宽(m)" value="10">
+        <input id="m-hei" type="number" placeholder="高(m)" value="5">
+      </div>
+      <div class="led-row">
+        <select id="m-scene">
+          <option value="圆桌">圆桌会议室</option>
+          <option value="阶梯">阶梯教室</option>
+          <option value="报告厅">报告厅</option>
+        </select>
+        <select id="m-config">
+          <option value="中配">中配</option>
+          <option value="高配">高配</option>
+          <option value="低配">低配</option>
+        </select>
+        <select id="m-mic">
+          <option value="0">无话筒</option>
+          <option value="1">无线手持</option>
+          <option value="2" selected>无线会议</option>
+          <option value="3">数字会议</option>
+        </select>
+      </div>
+      <div class="led-row">
+        <select id="m-ant">
+          <option value="0">无天线</option>
+          <option value="1">天线（无线话筒配套）</option>
+        </select>
+        <input id="m-code" placeholder="高级：itc 编码（可留空）" value="">
+      </div>
       <button class="btn-primary block" id="m-run">生成会议清单</button>
       <div id="m-result" class="eng-result"></div>
     </div>

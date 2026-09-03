@@ -73,7 +73,14 @@ class EngineDeviationIn(BaseModel):
 
 
 class EngineMeetingIn(BaseModel):
-    code: str
+    code: str = ""
+    length_m: float = 0
+    width_m: float = 0
+    height_m: float = 0
+    scene: str = "圆桌"  # 圆桌/阶梯/报告厅
+    config: str = "中配"  # 高配/中配/低配
+    mic: str = "0"       # 0无 1无线手持 2无线会议 3数字会议
+    antenna: str = "0"   # 0无 1天线
     header: dict = {}
 
 
@@ -114,6 +121,18 @@ def engine_deviation(body: EngineDeviationIn):
     return {"file": out, "results": [vars(r) for r in results], "low_confidence": low}
 
 
+
+
+_SCENE_TO_NUM = {"圆桌": "1", "阶梯": "2", "报告厅": "3"}
+_CONFIG_TO_NUM = {"高配": "1", "中配": "2", "低配": "3"}
+
+
+def _build_meeting_code(b: "EngineMeetingIn") -> str:
+    """结构化参数 → itc 编码：长-宽-高-0-0-类型-配置-0-话筒-天线-"""
+    return (f"{b.length_m or 0:.0f}-{b.width_m or 0:.0f}-{b.height_m or 0:.0f}-"
+            f"0-0-{_SCENE_TO_NUM.get(b.scene, '1')}-{_CONFIG_TO_NUM.get(b.config, '2')}-"
+            f"0-{b.mic or '0'}-{b.antenna or '0'}-")
+
 @router.post("/engines/meeting")
 def engine_meeting(body: EngineMeetingIn):
     from app.config import settings
@@ -124,12 +143,13 @@ def engine_meeting(body: EngineMeetingIn):
     from app.generators.excel_generator import build_meeting_list
 
     os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
+    code = body.code.strip() if body.code and body.code.strip() else _build_meeting_code(body)
     with get_session(get_engine()) as s:
         seed_selection_rules(s)
-        rows = select_devices(s, parse_code(body.code))
+        rows = select_devices(s, parse_code(code))
     out = f"{settings.OUTPUT_DIR}/engines/meeting.xlsx"
     build_meeting_list(out, body.header, rows)
-    return {"file": out, "rows": rows}
+    return {"file": out, "rows": rows, "code": code}
 
 
 @router.post("/engines/broadcast")

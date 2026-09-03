@@ -70,3 +70,25 @@ def test_engine_led_endpoint(client):
     assert r.status_code == 200
     data = r.json()
     assert data["layout"]["count_w"] == 24 and data["layout"]["count_h"] == 16
+
+
+def test_engine_meeting_structured_fields(client):
+    """结构化字段直接调会议引擎（无需编码）。"""
+    r = client.post("/api/engines/meeting",
+                    json={"length_m": 12, "width_m": 10, "height_m": 5,
+                          "scene": "圆桌", "config": "中配", "mic": "2", "antenna": "1",
+                          "header": {}},
+                    headers=_auth())
+    assert r.status_code == 200
+    data = r.json()
+    assert data["code"] == "12-10-5-0-0-1-2-0-2-1-"
+    roles = {row["role"] for row in data["rows"]}
+    assert "无线会议主机" in roles and "天线分配器" in roles
+
+
+def test_engine_meeting_code_still_works(client):
+    """编码直传仍兼容。"""
+    r = client.post("/api/engines/meeting",
+                    json={"code": "12-10-5-0-0-2-3-"}, headers=_auth())
+    assert r.status_code == 200
+    assert r.json()["code"] == "12-10-5-0-0-2-3-"

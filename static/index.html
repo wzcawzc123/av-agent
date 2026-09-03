@@ -2,53 +2,69 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>AV Agent</title>
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#007aff">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header>
-    <h1>🎧 AV Agent</h1>
-    <div class="header-btns">
-      <button id="btnProducts" title="产品库">📦</button>
-      <button id="btnTemplates" title="模板库">🗂️</button>
-      <button id="btnSettings" title="模型配置">⚙️</button>
+  <header class="app-header">
+    <div class="header-top">
+      <h1 class="app-title">AV Agent</h1>
+      <div class="header-btns">
+        <button id="btnProducts" class="icon-btn" title="产品库" aria-label="产品库">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        </button>
+        <button id="btnTemplates" class="icon-btn" title="模板库" aria-label="模板库">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 3v5h5"/></svg>
+        </button>
+        <button id="btnSettings" class="icon-btn" title="模型配置" aria-label="模型配置">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
     </div>
   </header>
+
   <main id="chat-app">
-    <div id="chat-log"></div>
+    <div id="chat-log"><div class="msg bot welcome-msg">👋 你好，我是 AV Agent 音视频方案助手。发送需求即可生成设计方案、偏离表与 PPT。</div></div>
     <div id="confirm-card" hidden></div>
     <div id="progress-bar" hidden><div id="progress-fill"></div><span id="progress-text"></span></div>
     <div id="file-list"></div>
-    <form id="chat-form">
-      <input id="chat-input" placeholder="例如：100平会议室方案" autocomplete="off">
-      <button type="submit">发送</button>
+    <form id="chat-form" class="composer">
+      <input id="chat-input" placeholder="输入需求，例如：100平会议室方案" autocomplete="off">
+      <button type="submit" class="send-btn" aria-label="发送">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
+      </button>
     </form>
   </main>
 
   <div id="settings-drawer" class="drawer" hidden>
-    <h3>模型提供商</h3>
-    <p class="drawer-hint">内置主流模型（OpenAI/Anthropic/百炼/DeepSeek/Kimi/MiMo/MiniMax/阶跃/硅基流动/OpenRouter/GLM/文心/Gemini），也可自定义新增</p>
-    <button id="prov-add">➕ 新增自定义提供商</button>
-    <div id="prov-list"></div>
+    <div class="drawer-head">
+      <h3>模型提供商</h3>
+      <button id="cfg-close" class="btn-ghost close-btn" aria-label="关闭">✕</button>
+    </div>
+    <p class="drawer-hint">内置 OpenAI / Anthropic / 百炼 / DeepSeek / Kimi / MiMo / MiniMax / 阶跃 / 硅基流动 / OpenRouter / GLM / 文心 / Gemini，支持自定义新增</p>
+    <button id="prov-add" class="btn-primary block">＋ 新增自定义提供商</button>
+    <div id="prov-list" class="card-list"></div>
     <div id="update-sec" class="update-sec">
-      <h4>🔄 软件更新</h4>
+      <h4>软件更新</h4>
       <input id="upd-url" placeholder="更新检查地址（默认 GitHub Releases）">
       <input id="upd-token" type="password" placeholder="GitHub Token（私有仓库选填）">
       <div class="upd-btns">
-        <button id="upd-save">保存更新配置</button>
-        <button id="upd-check">检查更新</button>
+        <button id="upd-save" class="btn-primary">保存更新配置</button>
+        <button id="upd-check" class="btn-secondary">检查更新</button>
       </div>
       <div id="upd-result" class="drawer-result"></div>
     </div>
-    <button id="cfg-close" class="btn-ghost">关闭</button>
   </div>
 
   <div id="prov-edit-drawer" class="drawer" hidden>
-    <h3 id="prov-edit-title">编辑提供商</h3>
+    <div class="drawer-head">
+      <h3 id="prov-edit-title">编辑提供商</h3>
+      <button id="pe-close" class="btn-ghost close-btn" aria-label="返回">✕</button>
+    </div>
     <input id="pe-name" placeholder="提供商名称">
     <select id="pe-type">
       <option value="openai_compatible">OpenAI 兼容</option>
@@ -58,24 +74,31 @@
     <input id="pe-base" placeholder="Base URL（如 https://api.xxx.com/v1）">
     <input id="pe-key" type="password" placeholder="API Key">
     <input id="pe-models" placeholder="模型列表，逗号分隔（如 gpt-4o,gpt-4o-mini）">
-    <button id="pe-save">保存</button>
-    <button id="pe-fetch">远程拉取模型</button>
+    <button id="pe-save" class="btn-primary block">保存</button>
+    <button id="pe-fetch" class="btn-secondary block">远程拉取模型</button>
     <div id="pe-result" class="drawer-result"></div>
-    <button id="pe-close" class="btn-ghost">返回</button>
   </div>
 
   <div id="products-drawer" class="drawer" hidden>
-    <h3>产品库</h3>
-    <p class="drawer-hint">上传公司产品 Excel（表头：产品名称 | 型号 | 参数 | 底价 | 市场价 | 分类）</p>
-    <input id="prod-file" type="file" accept=".xlsx,.xls">
-    <button id="prod-upload">上传导入</button>
+    <div class="drawer-head">
+      <h3>产品库</h3>
+      <button id="prod-close" class="btn-ghost close-btn" aria-label="关闭">✕</button>
+    </div>
+    <p class="drawer-hint">上传公司产品 Excel（表头：产品名称 ｜ 型号 ｜ 参数 ｜ 底价 ｜ 市场价 ｜ 分类）</p>
+    <label class="file-picker">
+      <input id="prod-file" type="file" accept=".xlsx,.xls">
+      <span>选择 Excel 文件</span>
+    </label>
+    <button id="prod-upload" class="btn-primary block">上传导入</button>
     <div id="prod-result" class="drawer-result"></div>
-    <div id="prod-list"></div>
-    <button id="prod-close" class="btn-ghost">关闭</button>
+    <div id="prod-list" class="card-list"></div>
   </div>
 
   <div id="templates-drawer" class="drawer" hidden>
-    <h3>模板库</h3>
+    <div class="drawer-head">
+      <h3>模板库</h3>
+      <button id="tpl-close" class="btn-ghost close-btn" aria-label="关闭">✕</button>
+    </div>
     <p class="drawer-hint">注册模板；常规配置模板按面积自动匹配</p>
     <input id="tpl-name" placeholder="模板名称">
     <select id="tpl-type">
@@ -90,13 +113,11 @@
     </div>
     <input id="tpl-path" placeholder="文件路径，如 D:/tpl/方案模板.docx">
     <input id="tpl-desc" placeholder="描述（可选）">
-    <button id="tpl-add">注册模板</button>
-    <div id="tpl-list"></div>
-    <button id="tpl-close" class="btn-ghost">关闭</button>
+    <button id="tpl-add" class="btn-primary block">注册模板</button>
+    <div id="tpl-list" class="card-list"></div>
   </div>
 
   <script src="/app.js"></script>
-
   <script>
     if ("serviceWorker" in navigator && window.isSecureContext) {
       navigator.serviceWorker.register("/sw.js").catch(function () {});

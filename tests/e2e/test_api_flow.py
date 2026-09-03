@@ -31,11 +31,26 @@ def test_chat_flow(client, monkeypatch):
             return '{"area": 100, "scene": "会议室", "budget": null, "brand": null, "deliverables": ["doc"], "missing": ["budget"]}'
 
     monkeypatch.setattr("app.api.routes_chat.get_provider", lambda cfg: FakeProvider())
+    monkeypatch.setattr("app.api.routes_chat.load_model_config",
+                        lambda: {"provider": "deepseek", "api_key": "sk-test"})
     r = client.post("/api/chat", json={"text": "100平会议室方案"}, headers=_auth(client))
     assert r.status_code == 200
     data = r.json()
     assert data["status"] in ("COLLECTING", "CONFIRMING")
     assert "预算" in data["reply"]
+
+
+def test_chat_unconfigured_returns_guidance(client, monkeypatch):
+    """未配置模型时必须返回引导提示而不是 500。"""
+    monkeypatch.setattr("app.api.routes_chat.load_model_config", lambda: {})
+
+    async def boom(cfg):
+        raise AssertionError("未配置时不应调用 provider")
+
+    monkeypatch.setattr("app.api.routes_chat.get_provider", boom)
+    r = client.post("/api/chat", json={"text": "100平会议室方案"}, headers=_auth(client))
+    assert r.status_code == 200
+    assert "配置" in r.json()["reply"]
 
 
 def test_settings_model_roundtrip(client, monkeypatch, tmp_path):

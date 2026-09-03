@@ -38,6 +38,13 @@ async def chat(body: ChatIn):
     if st.status == "IDLE":
         st.transition("COLLECTING")
     cfg = load_model_config()
+    if not cfg.get("provider") or not cfg.get("api_key"):
+        return {
+            "reply": "尚未配置模型。请点击右上角 ⚙️ 选择提供商并填写 API Key 后重试。",
+            "project_id": pid,
+            "status": st.status,
+            "need_config": True,
+        }
     provider = await _get_provider(cfg)
     new_slots = await parse_intent(provider, body.text)
     for k, v in new_slots.items():

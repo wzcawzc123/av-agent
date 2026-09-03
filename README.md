@@ -8,9 +8,9 @@
 - **交付物确认**：一次产出文字方案(Word)、偏离表(Excel)、PPT，确认后执行
 - **产品库管理**：导入/更新公司产品 Excel（名称/参数/型号/底价/市场价）
 - **模板库管理**：常规配置模板（按面积匹配）、文字方案模板、PPT 母版、偏离表模板
-- **大模型适配**：可配置 API Key，内置主流模型提供商，模板按项目语义适配
+- **模型提供商体系**：内置 13 家主流提供商（OpenAI/Anthropic/阿里百炼/DeepSeek/Kimi/MiMo/MiniMax/阶跃星辰/硅基流动/OpenRouter/智谱/文心/Gemini），**支持用户自定义新增任意 OpenAI 兼容 / Anthropic / Gemini 提供商**（填名称 + Base URL + API Key + 模型列表即可），可复制/重置内置、远程拉取模型列表、一键测试连接
 - **文档生成**：Word 方案按需转 PDF；偏离表 Excel；PPT 套母版
-- **手机端 UI**：聊天、需求确认、进度条、文件下载、模型配置、产品上传、模板管理，一页搞定
+- **手机端 UI**：聊天、需求确认、进度条、文件下载、产品上传、模板管理、提供商管理，一页搞定
 - **局域网联动**：手机浏览器控制电脑端完成方案输出，无需安装 App
 
 ## 技术栈
@@ -22,7 +22,7 @@
 | 数据库 | SQLite（SQLAlchemy） |
 | 文档生成 | python-docx / openpyxl / python-pptx |
 | PDF 转换 | LibreOffice headless |
-| 模型调用 | httpx + Provider 适配器（可插拔） |
+| 模型调用 | httpx + Provider 适配器（可插拔，13 内置 + 自定义） |
 | 打包分发 | PyInstaller（Windows exe） |
 | 测试 | pytest + pytest-asyncio + responses |
 
@@ -34,13 +34,15 @@ av-agent/
 │   ├── api/            # REST API 端点
 │   ├── orchestrator/   # 对话状态机、意图识别、澄清、确认
 │   ├── llm/            # 模型 Provider 适配层（可插拔）
-│   │   └── providers/  # openai / openai_compat / gemini ...
+│   │   ├── providers/  # openai_compat / anthropic / gemini 客户端
+│   │   ├── provider_store.py  # 内置提供商 + 官方模型目录 + 来源注册 + 增删改查
+│   │   └── registry.py # 客户端工厂（按 provider 类型分派）
 │   ├── generators/     # Word/Excel/PPT 生成 + PDF 转换
 │   ├── tasks/          # 异步任务队列 + SSE 进度
 │   ├── db/             # SQLite 模型、产品导入、模板存储
 │   └── security/       # 访问鉴权、密钥工具
-├── static/             # 手机端单页前端（聊天/产品/模板/设置）
-├── data/               # 运行时生成：数据库、密钥、模型配置（git 忽略）
+├── static/             # 手机端单页前端（聊天/产品/模板/提供商）
+├── data/               # 运行时生成：数据库、密钥、providers.json、model.json（git 忽略）
 ├── output/             # 生成文件输出（git 忽略）
 ├── uploads/            # 上传文件暂存（git 忽略）
 ├── tests/              # 单元 / 端到端测试
@@ -65,7 +67,7 @@ AV_ACCESS_TOKEN=你的口令 uvicorn app.main:app --host 0.0.0.0 --port 8000
 # http://<电脑局域网IP>:8000
 ```
 
-首次使用：右上角 ⚙️ 配置模型（Provider + API Key）→ 📦 上传产品 Excel → 对话描述需求 → 确认后自动生成并下载。
+首次使用：右上角 ⚙️ 选择/新增模型提供商并填 API Key → 📦 上传产品 Excel → 对话描述需求 → 确认后自动生成并下载。
 
 ## 打包为 Windows exe（用户免装 Python）
 
@@ -96,5 +98,6 @@ build_exe.bat
 - [x] M2 数据：产品 Excel 导入、模板库管理
 - [x] M3 生成：LLM 适配 + Word/Excel/PPT + PDF 转换
 - [x] M4 体验：SSE 进度、项目管理、文件下载、鉴权
-- [x] M5 加固：单测全覆盖（37 用例通过）、错误处理、文档
+- [x] M5 加固：单测全覆盖、错误处理、文档
 - [x] M6 分发：手机端 UI 补全（产品/模板管理）+ Windows exe 打包配置
+- [x] M7 模型：13 家内置提供商（含 MiMo）+ 自定义提供商体系（参考 ETA-2 逻辑）

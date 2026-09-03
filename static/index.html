@@ -27,13 +27,28 @@
   </main>
 
   <div id="settings-drawer" class="drawer" hidden>
-    <h3>模型配置</h3>
-    <select id="cfg-provider"></select>
-    <input id="cfg-key" type="password" placeholder="API Key">
-    <input id="cfg-model" placeholder="模型名">
-    <input id="cfg-base" placeholder="Base URL（可选）">
-    <button id="cfg-save">保存</button>
+    <h3>模型提供商</h3>
+    <p class="drawer-hint">内置主流模型（OpenAI/Anthropic/百炼/DeepSeek/Kimi/MiMo/MiniMax/阶跃/硅基流动/OpenRouter/GLM/文心/Gemini），也可自定义新增</p>
+    <button id="prov-add">➕ 新增自定义提供商</button>
+    <div id="prov-list"></div>
     <button id="cfg-close" class="btn-ghost">关闭</button>
+  </div>
+
+  <div id="prov-edit-drawer" class="drawer" hidden>
+    <h3 id="prov-edit-title">编辑提供商</h3>
+    <input id="pe-name" placeholder="提供商名称">
+    <select id="pe-type">
+      <option value="openai_compatible">OpenAI 兼容</option>
+      <option value="anthropic">Anthropic</option>
+      <option value="gemini">Gemini</option>
+    </select>
+    <input id="pe-base" placeholder="Base URL（如 https://api.xxx.com/v1）">
+    <input id="pe-key" type="password" placeholder="API Key">
+    <input id="pe-models" placeholder="模型列表，逗号分隔（如 gpt-4o,gpt-4o-mini）">
+    <button id="pe-save">保存</button>
+    <button id="pe-fetch">远程拉取模型</button>
+    <div id="pe-result" class="drawer-result"></div>
+    <button id="pe-close" class="btn-ghost">返回</button>
   </div>
 
   <div id="products-drawer" class="drawer" hidden>

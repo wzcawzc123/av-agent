@@ -5,6 +5,8 @@
 
   let projectId = null;
   let currentTaskId = null;
+  let editingProviderId = null;
+  let providersCache = [];
 
   const $ = (id) => document.getElementById(id);
   const chatLog = $("chat-log");
@@ -105,6 +107,138 @@
     };
   }
 
+  // ===== 模型提供商管理 =====
+  $("btnSettings").addEventListener("click", async () => {
+    $("settings-drawer").hidden = false;
+    await loadProviders();
+  });
+  $("cfg-close").addEventListener("click", () => { $("settings-drawer").hidden = true; });
+
+  async function loadProviders() {
+    const r = await api("/api/providers");
+    if (!r) return;
+    providersCache = await r.json();
+    const box = $("prov-list");
+    if (!providersCache.length) {
+      box.innerHTML = `<div class="item-card">暂无提供商</div>`;
+      return;
+    }
+    box.innerHTML = providersCache.map((p) => {
+      const keyState = p.has_api_key ? `🔑 已填` : `🔒 未填 Key`;
+      const models = (p.models || []).map((m) => m.model_id).join(", ") || "无模型";
+      return `
+      <div class="item-card">
+        <div class="item-title">${p.name} <span style="color:#6b7280;font-weight:400">${p.is_built_in ? "内置" : "自定义"}</span></div>
+        <div class="item-meta">${p.provider_type} ｜ ${keyState} ｜ 模型：${models}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <button class="item-del" data-act="edit" data-id="${p.id}">编辑</button>
+          <button class="item-del" style="background:#e0f2fe;color:#0369a1" data-act="select" data-id="${p.id}">设为当前</button>
+          ${p.is_built_in ? `
+            <button class="item-del" style="background:#e0e7ff;color:#3730a3" data-act="reset" data-id="${p.id}">重置</button>
+            <button class="item-del" style="background:#f1f5f9;color:#334155" data-act="copy" data-id="${p.id}">复制</button>` : `
+            <button class="item-del" style="background:#fee2e2;color:#b91c1c" data-act="del" data-id="${p.id}">删除</button>`}
+        </div>
+      </div>`;
+    }).join("");
+    box.querySelectorAll("button[data-act]").forEach((btn) => {
+      btn.addEventListener("click", () => providerAction(btn.dataset.act, btn.dataset.id));
+    });
+  }
+
+  async function providerAction(act, id) {
+    if (act === "edit") {
+      const p = providersCache.find((x) => x.id === id);
+      openProviderEditor(p);
+      return;
+    }
+    if (act === "select") {
+      const p = providersCache.find((x) => x.id === id);
+      const model = (p.models && p.models[0] && p.models[0].model_id) || "";
+      const r = await api("/api/settings/model", {
+        method: "PUT",
+        body: JSON.stringify({ provider: id, model }),
+      });
+      if (r) addMsg(`已切换到 ${p.name}。`, "bot");
+      await loadProviders();
+      return;
+    }
+    if (act === "del") {
+      const r = await api(`/api/providers/${id}`, { method: "DELETE" });
+      if (r) await loadProviders();
+      return;
+    }
+    if (act === "copy") {
+      const r = await api(`/api/providers/${id}/copy`, { method: "POST" });
+      if (r) await loadProviders();
+      return;
+    }
+    if (act === "reset") {
+      const r = await api(`/api/providers/${id}/reset`, { method: "POST" });
+      if (r) await loadProviders();
+      return;
+    }
+  }
+
+  $("prov-add").addEventListener("click", () => {
+    editingProviderId = null;
+    $("pe-name").value = "";
+    $("pe-base").value = "";
+    $("pe-key").value = "";
+    $("pe-models").value = "";
+    $("pe-type").value = "openai_compatible";
+    $("prov-edit-title").textContent = "新增自定义提供商";
+    $("pe-result").textContent = "";
+    $("settings-drawer").hidden = true;
+    $("prov-edit-drawer").hidden = false;
+  });
+
+  function openProviderEditor(p) {
+    editingProviderId = p.id;
+    $("pe-name").value = p.name;
+    $("pe-base").value = p.base_url;
+    $("pe-key").value = ""; // 掩码不回填，留空表示不修改
+    $("pe-models").value = (p.models || []).map((m) => m.model_id).join(",");
+    $("pe-type").value = p.provider_type || "openai_compatible";
+    $("prov-edit-title").textContent = `编辑：${p.name}${p.is_built_in ? "（内置）" : ""}`;
+    $("pe-result").textContent = p.has_api_key ? "已配置 API Key，留空则不修改。" : "";
+    $("settings-drawer").hidden = true;
+    $("prov-edit-drawer").hidden = false;
+  }
+
+  $("pe-close").addEventListener("click", () => {
+    $("prov-edit-drawer").hidden = true;
+    $("settings-drawer").hidden = false;
+    loadProviders();
+  });
+
+  $("pe-save").addEventListener("click", async () => {
+    const body = {
+      name: $("pe-name").value.trim(),
+      base_url: $("pe-base").value.trim(),
+      api_key: $("pe-key").value.trim(),
+      provider_type: $("pe-type").value,
+      models: ($("pe-models").value.split(",").map((s) => s.trim()).filter(Boolean))
+        .map((m, i) => ({ model_id: m, display_name: m })),
+    };
+    if (!body.name) { $("pe-result").textContent = "请填写提供商名称"; return; }
+    const r = editingProviderId
+      ? await api(`/api/providers/${editingProviderId}`, { method: "PUT", body: JSON.stringify(body) })
+      : await api("/api/providers", { method: "POST", body: JSON.stringify(body) });
+    if (!r) return;
+    $("pe-result").textContent = "已保存 ✅";
+    setTimeout(() => { $("prov-edit-drawer").hidden = true; $("settings-drawer").hidden = false; loadProviders(); }, 400);
+  });
+
+  $("pe-fetch").addEventListener("click", async () => {
+    if (!editingProviderId) { $("pe-result").textContent = "请先保存再拉取模型"; return; }
+    const r = await api(`/api/providers/${editingProviderId}/fetch-models`, { method: "POST" });
+    if (!r) return;
+    const data = await r.json();
+    $("pe-result").textContent = `拉取到 ${data.fetched.length} 个模型`;
+    const p = providersCache.find((x) => x.id === editingProviderId);
+    if (p) { $("pe-models").value = data.fetched.join(","); }
+  });
+
   // ===== 产品库抽屉 =====
   $("btnProducts").addEventListener("click", async () => {
     $("products-drawer").hidden = false;
@@ -196,37 +330,6 @@
     $("tpl-name").value = ""; $("tpl-path").value = ""; $("tpl-desc").value = "";
     $("tpl-area").value = ""; $("tpl-scene").value = "";
     await loadTemplates();
-  });
-
-  // ===== 设置抽屉 =====
-  const PROVIDERS = ["deepseek", "openai", "qwen", "kimi", "glm", "wenxin", "gemini"];
-  $("cfg-provider").innerHTML = PROVIDERS.map((p) => `<option value="${p}">${p}</option>`).join("");
-
-  $("btnSettings").addEventListener("click", async () => {
-    $("settings-drawer").hidden = false;
-    const r = await api("/api/settings/model");
-    if (!r) return;
-    const cfg = await r.json();
-    if (cfg.provider) $("cfg-provider").value = cfg.provider;
-    $("cfg-key").value = cfg.api_key || "";
-    $("cfg-model").value = cfg.model || "";
-    $("cfg-base").value = cfg.base_url || "";
-  });
-
-  $("cfg-close").addEventListener("click", () => { $("settings-drawer").hidden = true; });
-
-  $("cfg-save").addEventListener("click", async () => {
-    const body = {
-      provider: $("cfg-provider").value,
-      api_key: $("cfg-key").value.trim(),
-      model: $("cfg-model").value.trim(),
-      base_url: $("cfg-base").value.trim(),
-    };
-    const r = await api("/api/settings/model", { method: "PUT", body: JSON.stringify(body) });
-    if (r) {
-      addMsg("模型配置已保存。", "bot");
-      $("settings-drawer").hidden = true;
-    }
   });
 
   // ===== 下载文件（带鉴权） =====

@@ -387,7 +387,6 @@
   });
 
   if (!token()) addMsg("请先点击右上角 ⚙️ 或发送消息时输入访问口令。", "bot");
-})();
 
   // ===== 方案工具箱（四引擎） =====
   $("btnTools").addEventListener("click", () => { $("engines-drawer").hidden = false; });
@@ -415,8 +414,13 @@
 
   // 会议
   $("m-run").addEventListener("click", async () => {
-    const code = $("m-code").value.trim();
-    if (!code) { $("m-result").innerHTML = "<div class='item-card'>请填写编码</div>"; return; }
+    let code = $("m-code").value.trim();
+    if (!code) {
+      const scene = { "圆桌": 1, "阶梯": 2, "报告厅": 3 }[$("m-scene").value] || 1;
+      const config = { "中配": 2, "高配": 1, "低配": 3 }[$("m-config").value] || 2;
+      code = [$("m-len").value || 0, $("m-wid").value || 0, $("m-hei").value || 0,
+              0, 0, scene, config, 0, $("m-mic").value, $("m-ant").value].join("-") + "-";
+    }
     const data = await runEngine("/api/engines/meeting", { code, header: {} }, "m-result");
     if (!data) return;
     const rows = data.rows.map(r => [r.seq, r.name, r.spec, r.brand, r.model, r.qty, r.unit, r.price]);

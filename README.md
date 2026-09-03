@@ -102,6 +102,12 @@ build_exe.bat
 - [x] M6 分发：手机端 UI 补全（产品/模板管理）+ Windows exe 打包配置
 - [x] M7 模型：13 家内置提供商（含 MiMo）+ 自定义提供商体系（参考 ETA-2 逻辑）
 
+## 手机端使用（PWA）
+
+前端已内置 PWA 支持（`manifest.json` + 图标 + Service Worker）。手机浏览器打开页面后：
+Chrome → 菜单 →「添加到主屏幕」，桌面即生成 **AV Agent** 图标，点开全屏运行，接近原生 App 体验。
+Service Worker 仅 HTTPS/localhost 下启用离线缓存；局域网 HTTP 访问不影响功能，只是无离线缓存。
+
 ## 更新与发布
 
 > 完整发布流程见 [docs/发布更新操作手册.md](docs/发布更新操作手册.md)（含 gh 命令、私有仓库 Token 配置、常见问题）。

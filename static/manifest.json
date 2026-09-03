@@ -1,0 +1,15 @@
+{
+  "name": "AV Agent 音视频方案助手",
+  "short_name": "AV Agent",
+  "description": "音视频行业方案设计助手：对话生成设计方案、偏离表与PPT",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

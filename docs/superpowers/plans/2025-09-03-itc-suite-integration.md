@@ -423,7 +423,8 @@ def parse_code(code: str) -> MeetingParams:
 
 **Interfaces:**
 - `seed_selection_rules(session) -> None`（幂等，重复调用不重复插入）
-- 初始规则 3 组场景 × 5 角色 = 15 条（主音箱/功放/处理器/调音台/显示），型号取自逆向的 itc 解释器（如 TK-L208、TA-2900、TS-P440、TS-24PD-8、TV-86810）
+- 初始规则 3 组场景 × 5 角色 = 15 条（主音箱/功放/处理器/调音台/显示）
+- 型号映射到产品库真实存在值：圆桌 MH-VS08/MH-L240/MH-MA0808/MH-V5-MIX1004/EG65MZ；阶梯 MH-VS10/EG75MZ；报告厅 MH-VS12/MH-L440/MH-MA1616/MH-V5-MIX1812/EG86MZ（实施时以 `app/engines/meeting/rules.py` 为准）
 
 - [ ] **Step 1: 写失败测试**
 
@@ -445,21 +446,21 @@ def test_seed_selection_rules(tmp_path):
 from app.db.models import SelectionRule
 
 _INIT = [
-    ("圆桌", 0, 9999, "中配", "主音箱", "TK-L208", 4, "只"),
-    ("圆桌", 0, 9999, "中配", "功放", "TA-2900", 1, "台"),
-    ("圆桌", 0, 9999, "中配", "处理器", "TS-P440", 1, "台"),
-    ("圆桌", 0, 9999, "中配", "调音台", "TS-24PD-8", 1, "台"),
-    ("圆桌", 0, 9999, "中配", "显示", "TV-86810", 1, "台"),
-    ("阶梯", 0, 9999, "中配", "主音箱", "TK-L208", 4, "只"),
-    ("阶梯", 0, 9999, "中配", "功放", "TA-2900", 1, "台"),
-    ("阶梯", 0, 9999, "中配", "处理器", "TS-P440", 1, "台"),
-    ("阶梯", 0, 9999, "中配", "调音台", "TS-24PD-8", 1, "台"),
-    ("阶梯", 0, 9999, "中配", "显示", "TV-8105", 1, "台"),
-    ("报告厅", 0, 9999, "中配", "主音箱", "LA-2100K", 2, "只"),
-    ("报告厅", 0, 9999, "中配", "功放", "TA-2900", 1, "台"),
-    ("报告厅", 0, 9999, "中配", "处理器", "TS-P440", 1, "台"),
-    ("报告厅", 0, 9999, "中配", "调音台", "TS-24PD-8", 1, "台"),
-    ("报告厅", 0, 9999, "中配", "显示", "TV-810SP", 1, "台"),
+    ("圆桌", 0, 9999, "中配", "主音箱", "MH-VS08", 2, "只"),
+    ("圆桌", 0, 9999, "中配", "功放", "MH-L240", 1, "台"),
+    ("圆桌", 0, 9999, "中配", "处理器", "MH-MA0808", 1, "台"),
+    ("圆桌", 0, 9999, "中配", "调音台", "MH-V5-MIX1004", 1, "台"),
+    ("圆桌", 0, 9999, "中配", "显示", "EG65MZ", 1, "台"),
+    ("阶梯", 0, 9999, "中配", "主音箱", "MH-VS10", 4, "只"),
+    ("阶梯", 0, 9999, "中配", "功放", "MH-L240", 1, "台"),
+    ("阶梯", 0, 9999, "中配", "处理器", "MH-MA0808", 1, "台"),
+    ("阶梯", 0, 9999, "中配", "调音台", "MH-V5-MIX1004", 1, "台"),
+    ("阶梯", 0, 9999, "中配", "显示", "EG75MZ", 1, "台"),
+    ("报告厅", 0, 9999, "中配", "主音箱", "MH-VS12", 4, "只"),
+    ("报告厅", 0, 9999, "中配", "功放", "MH-L440", 1, "台"),
+    ("报告厅", 0, 9999, "中配", "处理器", "MH-MA1616", 1, "台"),
+    ("报告厅", 0, 9999, "中配", "调音台", "MH-V5-MIX1812", 1, "台"),
+    ("报告厅", 0, 9999, "中配", "显示", "EG86MZ", 2, "台"),
 ]
 
 def seed_selection_rules(session):
@@ -494,15 +495,16 @@ def test_select_devices_meeting(tmp_path):
     engine = get_engine(f"sqlite:///{tmp_path}/t.db")
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
-        s.add(Product(name="全频音箱", model="TK-L208", brand="itc",
-                      description="8寸全频音箱"))
-        s.add(Product(name="功放", model="TA-2900", brand="itc", description="2×900W"))
+        s.add(Product(name="8寸多功能专业音箱", model="MH-VS08", brand="MAXHUB",
+                      description="8寸两分频无源音箱"))
+        s.add(Product(name="2*400W数字功放", model="MH-L240", brand="MAXHUB",
+                      description="双通道数字功放"))
         s.commit()
         seed_selection_rules(s)
         rows = select_devices(s, parse_code("1-10-5-"))
         assert len(rows) >= 5
-        tk = [r for r in rows if r["model"] == "TK-L208"][0]
-        assert tk["name"] == "全频音箱" and tk["qty"] == 4
+        tk = [r for r in rows if r["model"] == "MH-VS08"][0]
+        assert tk["name"] == "8寸多功能专业音箱" and tk["qty"] == 2
         assert tk["price"] == 0
 ```
 
@@ -555,14 +557,14 @@ def select_devices(session, params: MeetingParams) -> list[dict]:
 def test_build_meeting_list(tmp_path):
     out = tmp_path / "meeting.xlsx"
     path = build_meeting_list(str(out), {"项目名称": "测试会议室"}, [
-        {"name": "全频音箱", "spec": "8寸", "brand": "itc", "model": "TK-L208",
-         "qty": 4, "unit": "只", "price": 0},
+        {"name": "8寸多功能专业音箱", "spec": "8寸", "brand": "MAXHUB", "model": "MH-VS08",
+         "qty": 2, "unit": "只", "price": 0},
     ])
     wb = load_workbook(path)
     ws = wb.active
     assert ws.cell(1, 2).value == "项目名称"
     assert ws.cell(3, 2).value == "全频音箱"
-    assert ws.cell(3, 5).value == "TK-L208"
+    assert ws.cell(3, 5).value == "MH-VS08"
 ```
 
 - [ ] **Step 2: 确认失败**

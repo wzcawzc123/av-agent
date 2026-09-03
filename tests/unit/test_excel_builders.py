@@ -37,12 +37,12 @@ def test_build_meeting_list(tmp_path):
 def test_build_broadcast_list(tmp_path):
     out = tmp_path / "broadcast.xlsx"
     path = build_broadcast_list(str(out), {}, [
-        {"zone": "分区1", "T-601": 12, "power_w": 180, "amplifier": "T-240"}],
-        [{"name": "壁挂喇叭", "model": "T-601", "qty": 12, "unit": "只"}])
+        {"zone": "分区1", "MH-C8A": 12, "power_w": 1440, "amplifier": "MH-L240"}],
+        [{"name": "8寸吸顶音箱", "model": "MH-C8A", "qty": 12, "unit": "只"}])
     wb = load_workbook(path)
     ws = wb.active
     assert ws.cell(3, 1).value == "分区1"
-    assert ws.cell(3, 4).value == "T-240"
+    assert ws.cell(3, 4).value == "MH-L240"
 
 
 def test_build_led_list(tmp_path):

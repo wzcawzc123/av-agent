@@ -33,8 +33,8 @@ def test_full_pipeline_smoke(client, tmp_path):
 
     # 2) 广播
     r = client.post("/api/engines/broadcast",
-                    json={"zones": [{"zone": "1F大厅", "T-601": 24, "T-105": 12},
-                                    {"zone": "2F走廊", "T-105": 8}], "header": {}},
+                    json={"zones": [{"zone": "1F大厅", "MH-C8A": 24, "MH-V5-PAS04C": 12},
+                                    {"zone": "2F走廊", "MH-V5-PAS04C": 8}], "header": {}},
                     headers=_auth())
     assert r.status_code == 200
     bc = r.json()

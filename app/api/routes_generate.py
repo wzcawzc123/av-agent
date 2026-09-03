@@ -158,7 +158,7 @@ def engine_broadcast(body: EngineBroadcastIn):
     from app.db.models import AmplifierTier, SpeakerSpec
     from app.db.session import get_engine, get_session
     from app.engines.broadcast.calculator import compute_zone_power, select_amplifier
-    from app.engines.broadcast.rules import seed_amplifier_tiers, seed_speaker_specs
+    from app.engines.broadcast.rules import _SPEAKER_NAMES, seed_amplifier_tiers, seed_speaker_specs
     from app.generators.excel_generator import build_broadcast_list
 
     os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)

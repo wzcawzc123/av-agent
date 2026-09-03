@@ -53,12 +53,12 @@ def test_engine_deviation_endpoint(client, monkeypatch):
 
 def test_engine_broadcast_endpoint(client):
     r = client.post("/api/engines/broadcast",
-                    json={"zones": [{"zone": "分区1", "T-601": 12, "T-105": 6}],
+                    json={"zones": [{"zone": "分区1", "MH-C8A": 12, "MH-V5-PAS04C": 6}],
                           "header": {}},
                     headers=_auth())
     assert r.status_code == 200
     data = r.json()
-    assert data["zones_with_power"][0]["power_w"] == (12 * 10 + 6 * 6) * 1.5
+    assert data["zones_with_power"][0]["power_w"] == (12 * 80 + 6 * 30) * 1.5
     assert data["zones_with_power"][0]["amplifier"]
 
 

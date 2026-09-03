@@ -17,10 +17,10 @@ def test_engine_tables_create_and_rw(tmp_path):
     with get_session(engine) as s:
         s.add(SelectionRule(scene="圆桌", area_min=0, area_max=9999, config_level="中配",
                             device_role="主音箱", model="TK-L208", qty=4, unit="只"))
-        s.add(SpeakerSpec(model="T-105", power_w=6, category="天花喇叭"))
+        s.add(SpeakerSpec(model="MH-V5-PAS04C", power_w=30, category="4寸天花音箱"))
         s.add(LedPanelSpec(model="TV-PH250-YZ", module_w_mm=250, module_h_mm=250,
                            res_w=64, res_h=64, type="常规室内屏"))
-        s.add(AmplifierTier(min_w=0, max_w=60, model="T-60"))
+        s.add(AmplifierTier(min_w=0, max_w=150, model="MH-L215"))
     with get_session(engine) as s:
         assert s.query(SelectionRule).count() == 1
         assert s.query(SpeakerSpec).count() == 1

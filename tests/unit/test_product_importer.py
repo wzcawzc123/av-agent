@@ -23,11 +23,12 @@ def test_import_new(tmp_path, excel_path):
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
         r = import_products(excel_path, s)
-        assert r == {"inserted": 2, "updated": 0}
+        assert r["inserted"] == 2 and r["updated"] == 0
         assert s.query(Product).count() == 2
 
 
-def test_import_updates_existing(tmp_path, excel_path):
+def test_import_skips_duplicate(tmp_path, excel_path):
+    """重复型号：跳过不覆盖（价格/名称不被旧文件覆盖）。"""
     engine = get_engine(f"sqlite:///{tmp_path}/t.db")
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
@@ -40,6 +41,6 @@ def test_import_updates_existing(tmp_path, excel_path):
         p2 = tmp_path / "p2.xlsx"
         wb.save(p2)
         r = import_products(str(p2), s)
-        assert r == {"inserted": 0, "updated": 1}
+        assert r["inserted"] == 0 and r["updated"] == 0 and r["skipped"] == 1
         got = s.query(Product).filter_by(model="AV-8A").first()
-        assert got.name == "8寸音箱改" and got.base_price == 900
+        assert got.name == "8寸音箱" and got.base_price == 0

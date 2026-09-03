@@ -13,9 +13,12 @@ async def lifespan(app: FastAPI):
 
     crypto.KEY_PATH = settings.MASTER_KEY_PATH
     from app.db.session import get_engine
+    from app.db.migrate import ensure_schema
     from app.db.models import Base
 
-    Base.metadata.create_all(get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(engine)
+    ensure_schema(engine)
     yield
 
 

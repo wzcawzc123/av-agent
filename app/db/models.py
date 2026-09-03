@@ -18,6 +18,8 @@ class Product(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
     model: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    brand: Mapped[str] = mapped_column(String(100), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
     params_json: Mapped[str] = mapped_column(Text, default="{}")
     base_price: Mapped[float] = mapped_column(Float, default=0)
     market_price: Mapped[float] = mapped_column(Float, default=0)

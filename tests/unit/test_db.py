@@ -16,7 +16,7 @@ def test_product_crud(tmp_path):
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
         p = Product(name="8寸音箱", model="AV-8A", params_json='{"功率":"80W"}',
-                    low_price=800, market_price=1200, category="音箱")
+                    base_price=800, market_price=1200, category="音箱")
         s.add(p)
         s.commit()
         got = s.query(Product).filter_by(model="AV-8A").first()

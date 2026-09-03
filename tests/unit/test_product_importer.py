@@ -10,7 +10,7 @@ from app.db.product_importer import import_products
 def excel_path(tmp_path):
     wb = Workbook()
     ws = wb.active
-    ws.append(["产品名称", "型号", "参数", "低价", "市场价", "分类"])
+    ws.append(["产品名称", "型号", "参数", "底价", "市场价", "分类"])
     ws.append(["8寸音箱", "AV-8A", '{"功率":"80W"}', 800, 1200, "音箱"])
     ws.append(["功放", "PA-400", '{"功率":"400W"}', 1500, 2200, "功放"])
     p = tmp_path / "products.xlsx"
@@ -35,11 +35,11 @@ def test_import_updates_existing(tmp_path, excel_path):
     with get_session(engine) as s:
         wb = Workbook()
         ws = wb.active
-        ws.append(["产品名称", "型号", "参数", "低价", "市场价", "分类"])
+        ws.append(["产品名称", "型号", "参数", "底价", "市场价", "分类"])
         ws.append(["8寸音箱改", "AV-8A", "{}", 900, 1300, "音箱"])
         p2 = tmp_path / "p2.xlsx"
         wb.save(p2)
         r = import_products(str(p2), s)
         assert r == {"inserted": 0, "updated": 1}
         got = s.query(Product).filter_by(model="AV-8A").first()
-        assert got.name == "8寸音箱改" and got.low_price == 900
+        assert got.name == "8寸音箱改" and got.base_price == 900

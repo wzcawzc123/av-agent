@@ -14,7 +14,7 @@ def _validate(result: dict) -> dict:
             raise ValueError(f"设备项缺字段: {d}")
         d.setdefault("spec", "")
         d.setdefault("model", "")
-        d.setdefault("low_price", 0)
+        d.setdefault("base_price", 0)
         d.setdefault("market_price", 0)
     result.setdefault("notes", "")
     return result
@@ -25,7 +25,7 @@ def _fill_prices(devices: list[dict], products: list[dict]) -> None:
     if not products:
         return
     for d in devices:
-        if d.get("low_price") and d.get("market_price"):
+        if d.get("base_price") and d.get("market_price"):
             continue
         spec = (d.get("spec") or "").strip()
         best = None
@@ -41,7 +41,7 @@ def _fill_prices(devices: list[dict], products: list[dict]) -> None:
                     break
         if best:
             d.setdefault("model", best.get("model", ""))
-            d.setdefault("low_price", best.get("low_price", 0))
+            d.setdefault("base_price", best.get("base_price", 0))
             d.setdefault("market_price", best.get("market_price", 0))
 
 
@@ -54,7 +54,7 @@ async def adapt_template(provider, slots: dict, config_template, products: list[
     user_msg = (
         f"项目需求：{json.dumps(slots, ensure_ascii=False)}\n"
         f"常规配置模板：{tpl_json}\n"
-        f"产品库（名称/型号/低价/市场价）：{product_summary}"
+        f"产品库（名称/型号/底价/市场价）：{product_summary}"
     )
     resp = await provider.chat(
         [

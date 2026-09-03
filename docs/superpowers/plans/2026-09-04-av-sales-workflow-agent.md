@@ -18,7 +18,7 @@
 - 输出目录 `output/<project_name>/`，已 gitignore
 - 服务默认绑定 `0.0.0.0:8000`，访问需启动口令
 - 所有 LLM 输出必须先过 JSON Schema 校验，失败自动重试 1 次
-- 产品 Excel 约定表头：`产品名称 | 型号 | 参数 | 低价 | 市场价 | 分类`
+- 产品 Excel 约定表头：`产品名称 | 型号 | 参数 | 底价 | 市场价 | 分类`
 - 交付规则：文字方案先出 Word，用户要求 PDF 时再转；偏离表 Excel；PPT 套母版
 - 所有任务测试优先（TDD），每个任务以 git commit 结束
 - 命名规范：函数/类 snake_case / PascalCase，测试文件 `tests/<模块>/test_<名>.py`
@@ -250,7 +250,7 @@ def test_product_crud(tmp_path):
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
         p = Product(name="8寸音箱", model="AV-8A", params_json='{"功率":"80W"}',
-                    low_price=800, market_price=1200, category="音箱")
+                    base_price=800, market_price=1200, category="音箱")
         s.add(p); s.commit()
         got = s.query(Product).filter_by(model="AV-8A").first()
         assert got is not None and got.name == "8寸音箱"
@@ -309,7 +309,7 @@ class Product(Base):
     name = Column(String(200), index=True)
     model = Column(String(100), unique=True, index=True)
     params_json = Column(Text, default="{}")
-    low_price = Column(Float)
+    base_price = Column(Float)
     market_price = Column(Float)
     category = Column(String(100), index=True, default="")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -680,7 +680,7 @@ async def get_provider(config: dict) -> LLMProvider:
 `app/llm/prompts.py`（占位常量，后续任务填充使用）：
 ```python
 INTENT_PROMPT = """你是音视频售前方案助手。请从用户需求中提取结构化信息，输出 JSON：{"area": 面积数字或null, "scene": 场景, "budget": 预算或null, "brand": 品牌偏好或null, "deliverables": ["doc","deviation","ppt"], "missing": [缺失字段列表]}。只输出 JSON。"""
-ADAPT_PROMPT = """你是音视频系统集成专家。根据项目需求与常规配置模板，结合产品库给出设备清单 JSON。严格输出：{"devices": [{"type":"音箱","spec":"8寸","qty":2,"model":"","low_price":0,"market_price":0}], "notes": "说明"}。只输出 JSON。"""
+ADAPT_PROMPT = """你是音视频系统集成专家。根据项目需求与常规配置模板，结合产品库给出设备清单 JSON。严格输出：{"devices": [{"type":"音箱","spec":"8寸","qty":2,"model":"","base_price":0,"market_price":0}], "notes": "说明"}。只输出 JSON。"""
 DOC_PROMPT = """你是音视频售前工程师。根据设备清单与项目信息，撰写文字设计方案正文，输出 Markdown。"""
 DEVIATION_PROMPT = """你是售前工程师。对照招标/需求逐项判断满足或偏离，输出 JSON：{"items": [{"requirement":"","status":"满足|偏离","note":""}]}。只输出 JSON。"""
 PPT_PROMPT = """你是售前演示专家。根据设备清单与方案生成 PPT 大纲，输出 JSON：{"slides": [{"title":"","bullets":[]}]}。只输出 JSON。"""
@@ -922,7 +922,7 @@ git add -A && git commit -m "feat: 意图识别、槽位提取与澄清追问"
 **Interfaces:**
 - Consumes: `app.db.session.get_session`, `app.db.models.Product`
 - Produces: `app.db.product_importer.import_products(excel_path: str, session) -> dict`（返回 `{"inserted": n, "updated": m}`）
-- 表头映射：`产品名称→name`、`型号→model`、`参数→params_json`、`低价→low_price`、`市场价→market_price`、`分类→category`
+- 表头映射：`产品名称→name`、`型号→model`、`参数→params_json`、`底价→base_price`、`市场价→market_price`、`分类→category`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -933,7 +933,7 @@ from openpyxl import Workbook
 def build(path: str):
     wb = Workbook()
     ws = wb.active
-    ws.append(["产品名称", "型号", "参数", "低价", "市场价", "分类"])
+    ws.append(["产品名称", "型号", "参数", "底价", "市场价", "分类"])
     ws.append(["8寸音箱", "AV-8A", '{"功率":"80W"}', 800, 1200, "音箱"])
     ws.append(["功放", "PA-400", '{"功率":"400W"}', 1500, 2200, "功放"])
     wb.save(path)
@@ -953,7 +953,7 @@ from app.db.product_importer import import_products
 @pytest.fixture
 def excel_path(tmp_path):
     wb = Workbook(); ws = wb.active
-    ws.append(["产品名称", "型号", "参数", "低价", "市场价", "分类"])
+    ws.append(["产品名称", "型号", "参数", "底价", "市场价", "分类"])
     ws.append(["8寸音箱", "AV-8A", '{"功率":"80W"}', 800, 1200, "音箱"])
     ws.append(["功放", "PA-400", '{"功率":"400W"}', 1500, 2200, "功放"])
     p = tmp_path / "products.xlsx"; wb.save(p); return str(p)
@@ -971,13 +971,13 @@ def test_import_updates_existing(tmp_path, excel_path):
         import_products(excel_path, s)
     with get_session(engine) as s:
         wb = Workbook(); ws = wb.active
-        ws.append(["产品名称", "型号", "参数", "低价", "市场价", "分类"])
+        ws.append(["产品名称", "型号", "参数", "底价", "市场价", "分类"])
         ws.append(["8寸音箱改", "AV-8A", '{}', 900, 1300, "音箱"])
         p2 = tmp_path / "p2.xlsx"; wb.save(p2)
         r = import_products(str(p2), s)
         assert r == {"inserted": 0, "updated": 1}
         got = s.query(Product).filter_by(model="AV-8A").first()
-        assert got.name == "8寸音箱改" and got.low_price == 900
+        assert got.name == "8寸音箱改" and got.base_price == 900
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -994,7 +994,7 @@ from openpyxl import load_workbook
 from app.db.models import Product
 
 HEADER_MAP = {"产品名称": "name", "型号": "model", "参数": "params_json",
-              "低价": "low_price", "市场价": "market_price", "分类": "category"}
+              "底价": "base_price", "市场价": "market_price", "分类": "category"}
 
 def _norm(s):
     return str(s or "").strip()
@@ -1138,7 +1138,7 @@ git add -A && git commit -m "feat: 模板库存储与配置模板匹配"
 **Interfaces:**
 - Consumes: `app.llm.prompts.ADAPT_PROMPT`, `app.orchestrator.intent.extract_json`, `app.db.template_store.find_config_template`, `app.db.models.Product`
 - Produces: `app.llm.adapt.adapt_template(provider, slots: dict, config_template, products: list[dict], session) -> dict`
-  - 返回 `{"devices": [{"type","spec","qty","model","low_price","market_price"}], "notes": str}`
+  - 返回 `{"devices": [{"type","spec","qty","model","base_price","market_price"}], "notes": str}`
   - 校验：devices 非空且每项含 type/qty；价格缺失时尝试用产品库匹配（按 spec 关键词）
 
 - [ ] **Step 1: 写失败测试** `tests/unit/test_adapt_template.py`
@@ -1159,7 +1159,7 @@ class FakeProvider:
 async def test_adapt_returns_devices(tmp_path):
     engine = get_engine(f"sqlite:///{tmp_path}/t.db"); Base.metadata.create_all(engine)
     with get_session(engine) as s:
-        s.add(Product(name="8寸音箱", model="AV-8A", low_price=800, market_price=1200, category="音箱"))
+        s.add(Product(name="8寸音箱", model="AV-8A", base_price=800, market_price=1200, category="音箱"))
         s.add(ConfigTemplate(name="100平", area=100, scene="会议室",
                              config_json=json.dumps({"devices": [{"type": "音箱", "spec": "8寸", "qty": 2}]})))
         s.commit()
@@ -1199,7 +1199,7 @@ def _validate(result: dict) -> dict:
             raise ValueError(f"设备项缺字段: {d}")
         d.setdefault("spec", "")
         d.setdefault("model", "")
-        d.setdefault("low_price", 0)
+        d.setdefault("base_price", 0)
         d.setdefault("market_price", 0)
     result.setdefault("notes", "")
     return result
@@ -1210,7 +1210,7 @@ async def adapt_template(provider, slots: dict, config_template, products: list[
     product_summary = json.dumps(products[:50], ensure_ascii=False)
     user_msg = (f"项目需求：{json.dumps(slots, ensure_ascii=False)}\n"
                 f"常规配置模板：{tpl_json}\n"
-                f"产品库（名称/型号/低价/市场价）：{product_summary}")
+                f"产品库（名称/型号/底价/市场价）：{product_summary}")
     resp = await provider.chat([
         ChatMessage("system", ADAPT_PROMPT),
         ChatMessage("user", user_msg),
@@ -1577,7 +1577,7 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
     done = 0
     progress_cb(int(10 / total * 100), "匹配常规配置模板…")
     tpl = find_config_template(session, slots.get("area") or 0)
-    products = [{"name": p.name, "model": p.model, "low_price": p.low_price,
+    products = [{"name": p.name, "model": p.model, "base_price": p.base_price,
                  "market_price": p.market_price} for p in session.query(__import__("app.db.models", fromlist=["Product"]).Product).limit(200)]
     devices = []
     if "doc" in cfg["deliverables"] or "ppt" in cfg["deliverables"]:

@@ -22,7 +22,7 @@ async def test_adapt_returns_devices(tmp_path):
     engine = get_engine(f"sqlite:///{tmp_path}/t.db")
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
-        s.add(Product(name="8寸音箱", model="AV-8A", low_price=800, market_price=1200, category="音箱"))
+        s.add(Product(name="8寸音箱", model="AV-8A", base_price=800, market_price=1200, category="音箱"))
         s.add(ConfigTemplate(name="100平", area=100, scene="会议室",
                              config_json=json.dumps({"devices": [{"type": "音箱", "spec": "8寸", "qty": 2}]})))
         s.commit()

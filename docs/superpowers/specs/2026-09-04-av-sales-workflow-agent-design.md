@@ -34,7 +34,7 @@
 |---|---|---|
 | FR1 | 对话式需求采集 | 用户发需求 → Agent 识别缺口并提问（面积、场景、预算、品牌偏好、交付物） |
 | FR2 | 交付物确认 | 支持一次产出多份文件：文字方案(Word)、偏离表(Excel)、PPT；确认后执行 |
-| FR3 | 产品库管理 | 导入/更新公司产品 Excel（名称、参数、型号、低价、市场价），支持查询 |
+| FR3 | 产品库管理 | 导入/更新公司产品 Excel（名称、参数、型号、底价、市场价），支持查询 |
 | FR4 | 模板库管理 | 常规配置模板（100/200/300平）、文字方案模板、PPT 母版、偏离表模板，可增删替换 |
 | FR5 | 大模型适配 | 依据实际项目需求语义适配模板，生成设备清单与方案内容 |
 | FR6 | 文档生成 | Word 方案、Excel 偏离表、PPT 生成；文字方案默认 Word，用户要求 PDF 时再导出 PDF |
@@ -176,7 +176,7 @@
 
 ### 5.4 数据层 (`app/db/`)
 - SQLite 表设计见 §6
-- `product_importer.py`：解析产品 Excel（表头映射：名称/参数/型号/低价/市场价），全量替换或增量合并
+- `product_importer.py`：解析产品 Excel（表头映射：名称/参数/型号/底价/市场价），全量替换或增量合并
 - `template_store.py`：模板文件入库 + 元数据（类型、适用场景、版本）
 
 ### 5.5 文档生成管线 (`app/generators/`)
@@ -200,7 +200,7 @@
 ## 6. 数据设计（SQLite）
 
 ```
-products(id, name, model, params_json, low_price, market_price, category, updated_at)
+products(id, name, model, params_json, base_price, market_price, category, updated_at)
 templates(id, name, type, description, file_path, meta_json, version, updated_at)
   -- type: config(常规配置) | doc(文字方案) | ppt(母版) | deviation(偏离表)
 config_templates(id, name, area, scene, config_json, updated_at)
@@ -211,7 +211,7 @@ settings(key, value)  -- 模型配置、口令哈希等
 ```
 
 **产品 Excel 导入规范**（约定表头，可在导入时映射）：
-`产品名称 | 型号 | 参数 | 低价 | 市场价 | 分类`
+`产品名称 | 型号 | 参数 | 底价 | 市场价 | 分类`
 
 **常规配置模板**（100/200/300平）由用户提供初始版，后续可由大模型基于历史项目持续优化建议。
 

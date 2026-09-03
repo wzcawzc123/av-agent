@@ -19,7 +19,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(200))
     model: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     params_json: Mapped[str] = mapped_column(Text, default="{}")
-    low_price: Mapped[float] = mapped_column(Float, default=0)
+    base_price: Mapped[float] = mapped_column(Float, default=0)
     market_price: Mapped[float] = mapped_column(Float, default=0)
     category: Mapped[str] = mapped_column(String(100), default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)

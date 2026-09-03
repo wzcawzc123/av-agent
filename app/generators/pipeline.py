@@ -17,7 +17,7 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
     progress_cb(int(10 / total * 100), "匹配常规配置模板…")
     tpl = find_config_template(session, slots.get("area") or 0)
     products = [
-        {"name": p.name, "model": p.model, "low_price": p.low_price,
+        {"name": p.name, "model": p.model, "base_price": p.base_price,
          "market_price": p.market_price}
         for p in session.query(Product).limit(200)
     ]

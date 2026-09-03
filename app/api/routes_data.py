@@ -18,7 +18,7 @@ def list_products():
     with get_session() as s:
         rows = s.query(Product).order_by(Product.id.desc()).limit(500).all()
         return [{"id": p.id, "name": p.name, "model": p.model,
-                 "category": p.category, "low_price": p.low_price,
+                 "category": p.category, "base_price": p.base_price,
                  "market_price": p.market_price} for p in rows]
 
 

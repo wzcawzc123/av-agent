@@ -8,7 +8,8 @@ HEADER_MAP = {
     "产品名称": "name",
     "型号": "model",
     "参数": "params_json",
-    "低价": "low_price",
+    "底价": "base_price",
+    "低价": "base_price",
     "市场价": "market_price",
     "分类": "category",
 }

@@ -104,6 +104,8 @@ build_exe.bat
 
 ## 更新与发布
 
+> 完整发布流程见 [docs/发布更新操作手册.md](docs/发布更新操作手册.md)（含 gh 命令、私有仓库 Token 配置、常见问题）。
+
 **客户端更新机制**：客户端「设置 → 软件更新」检查 GitHub Releases（默认 `https://api.github.com/repos/wzcawzc123/av-agent/releases/latest`），
 比较本地版本号，有新版时给出更新说明与下载链接（exe 资产）。私有仓库需在更新配置中填入 GitHub Token（只读 Release 权限即可）。
 

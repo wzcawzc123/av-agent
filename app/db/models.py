@@ -80,3 +80,52 @@ class Setting(Base):
 
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[str] = mapped_column(Text, default="")
+
+
+class SelectionRule(Base):
+    """会议选型规则（场景×配置→设备角色→型号数量），数据驱动可后台维护。"""
+    __tablename__ = "selection_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    scene: Mapped[str] = mapped_column(String(50), index=True)
+    area_min: Mapped[float] = mapped_column(Float, default=0)
+    area_max: Mapped[float] = mapped_column(Float, default=9999)
+    config_level: Mapped[str] = mapped_column(String(20), default="中配")
+    device_role: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(100))
+    qty: Mapped[int] = mapped_column(Integer, default=1)
+    unit: Mapped[str] = mapped_column(String(20), default="台")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class SpeakerSpec(Base):
+    """广播喇叭功率规格表。"""
+    __tablename__ = "speaker_specs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    power_w: Mapped[float] = mapped_column(Float, default=0)
+    category: Mapped[str] = mapped_column(String(50), default="")
+
+
+class LedPanelSpec(Base):
+    """LED 屏体/模组规格表。"""
+    __tablename__ = "led_panel_specs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    module_w_mm: Mapped[int] = mapped_column(Integer, default=0)
+    module_h_mm: Mapped[int] = mapped_column(Integer, default=0)
+    res_w: Mapped[int] = mapped_column(Integer, default=0)
+    res_h: Mapped[int] = mapped_column(Integer, default=0)
+    type: Mapped[str] = mapped_column(String(50), default="")
+
+
+class AmplifierTier(Base):
+    """广播功放功率档位表。"""
+    __tablename__ = "amplifier_tiers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    min_w: Mapped[float] = mapped_column(Float, default=0)
+    max_w: Mapped[float] = mapped_column(Float, default=0)
+    model: Mapped[str] = mapped_column(String(100))

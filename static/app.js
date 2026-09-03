@@ -27,8 +27,9 @@
 
   function ensureToken() {
     if (!token()) {
-      const t = prompt("请输入访问口令：");
-      if (t) localStorage.setItem(TOKEN_KEY, t.trim());
+      const q = new URLSearchParams(location.search).get("token");
+      if (q) { localStorage.setItem(TOKEN_KEY, q.trim()); }
+      else { const t = prompt("请输入访问口令："); if (t) localStorage.setItem(TOKEN_KEY, t.trim()); }
     }
     return token();
   }
@@ -435,7 +436,7 @@
       const parts = line.split(/[,，]/).map(s => s.trim()).filter(Boolean);
       const zone = { zone: parts.shift() };
       for (const part of parts) {
-        const m = part.match(/^([^\d×x*]+)\s*[×x*]\s*(\d+)$/);
+        const m = part.match(/^(.+?)\s*[×x*]\s*(\d+)$/);
         if (m) zone[m[1]] = parseInt(m[2], 10);
       }
       return zone;

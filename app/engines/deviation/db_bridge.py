@@ -11,9 +11,11 @@ def _split_params(desc: str) -> list[str]:
 
 
 def build_candidates_from_db(session, models):
+    """按型号过滤构造候选；models 为空时使用全库产品。"""
     out = []
-    for m in models:
-        p = session.query(Product).filter_by(model=m).first()
-        if p:
-            out.append(ProductCandidate(model=m, params=_split_params(p.description)))
+    q = session.query(Product)
+    if models:
+        q = q.filter(Product.model.in_(models))
+    for p in q.all():
+        out.append(ProductCandidate(model=p.model, params=_split_params(p.description)))
     return out

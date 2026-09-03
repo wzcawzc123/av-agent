@@ -19,12 +19,13 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="AV Agent", version="0.1.0", lifespan=lifespan)
+from app.version import VERSION as APP_VERSION
+app = FastAPI(title="AV Agent", version=APP_VERSION, lifespan=lifespan)
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": APP_VERSION}
 
 
 from app.api.routes_chat import router as chat_router

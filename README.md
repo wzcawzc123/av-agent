@@ -101,3 +101,14 @@ build_exe.bat
 - [x] M5 加固：单测全覆盖、错误处理、文档
 - [x] M6 分发：手机端 UI 补全（产品/模板管理）+ Windows exe 打包配置
 - [x] M7 模型：13 家内置提供商（含 MiMo）+ 自定义提供商体系（参考 ETA-2 逻辑）
+
+## 更新与发布
+
+**客户端更新机制**：客户端「设置 → 软件更新」检查 GitHub Releases（默认 `https://api.github.com/repos/wzcawzc123/av-agent/releases/latest`），
+比较本地版本号，有新版时给出更新说明与下载链接（exe 资产）。私有仓库需在更新配置中填入 GitHub Token（只读 Release 权限即可）。
+
+**发布新版流程**：
+1. 修改 `app/version.py` 的 `VERSION`，提交推送；
+2. 在 Windows 上运行 `build_exe.bat` 生成 `dist\AVAgent.exe`；
+3. 创建 Release：`gh release create v1.0.1 dist\AVAgent.exe --title "v1.0.1" --notes "更新说明"`（或 GitHub 网页上传）；
+4. 客户端点击「检查更新」即可发现并下载新版。

@@ -43,7 +43,8 @@ def main():
     token = _load_or_create_token()
     settings.ACCESS_TOKEN = token
     print("=" * 52)
-    print("  AV Agent 已启动")
+    from app.version import VERSION
+    print("  AV Agent v%s 已启动" % VERSION)
     print(f"  本机访问:  http://127.0.0.1:{settings.PORT}")
     print(f"  手机访问:  http://<电脑局域网IP>:{settings.PORT}")
     print(f"  访问口令:  {token}")

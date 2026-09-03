@@ -171,3 +171,10 @@ main#chat-app {
   padding: 5px 12px;
   font-size: 12px;
 }
+
+/* 软件更新 */
+.update-sec { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border, #eee); }
+.update-sec h4 { margin: 0 0 8px; font-size: 14px; }
+.update-sec input { margin-bottom: 8px; }
+.upd-btns { display: flex; gap: 8px; }
+.upd-btns button { flex: 1; }

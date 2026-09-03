@@ -347,5 +347,39 @@
   }
   window.__download = download;
 
+
+  // ===== 软件更新 =====
+  async function loadUpdateCfg() {
+    const r = await api("/api/update/config");
+    if (!r) return;
+    $("upd-url").value = r.check_url || "";
+    $("upd-token").placeholder = r.has_token ? "已配置 Token（留空不修改）" : "GitHub Token（私有仓库选填）";
+  }
+  $("upd-save").addEventListener("click", async () => {
+    const url = $("upd-url").value.trim();
+    const token = $("upd-token").value.trim();
+    if (!url) { $("upd-result").textContent = "请填写更新检查地址。"; return; }
+    const r = await api("/api/update/config", { method: "PUT", body: JSON.stringify({ check_url: url, token }) });
+    if (!r) return;
+    $("upd-token").value = "";
+    $("upd-result").textContent = "更新配置已保存。";
+    await loadUpdateCfg();
+  });
+  $("upd-check").addEventListener("click", async () => {
+    $("upd-result").textContent = "正在检查更新…";
+    const r = await api("/api/update/check");
+    if (!r) return;
+    if (r.has_update) {
+      $("upd-result").innerHTML =
+        `<div class="item-card">🎉 发现新版本 <b>v${r.latest_version}</b>（当前 v${r.current_version}）` +
+        `<br>发布：${r.published_at || "未知"}` +
+        (r.notes ? `<br>更新说明：${escapeHtml(r.notes.slice(0, 500))}` : "") +
+        (r.download_url ? `<br><a href="${r.download_url}" target="_blank" rel="noopener">⬇ 下载新版本</a>` : "") +
+        `</div>`;
+    } else {
+      $("upd-result").innerHTML = `<div class="item-card">✅ 已是最新版本 v${r.current_version}。</div>`;
+    }
+  });
+
   if (!token()) addMsg("请先点击右上角 ⚙️ 或发送消息时输入访问口令。", "bot");
 })();

@@ -150,3 +150,82 @@ async def test_provider(provider_id: str):
         return {"ok": True, "model": model_id}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"连接失败：{type(e).__name__}: {e}")
+
+
+# ---------- 软件更新（GitHub Releases） ----------
+
+import json as _json
+from pathlib import Path as _Path
+
+import httpx as _httpx
+
+from app.version import VERSION as LOCAL_VERSION, DEFAULT_CHECK_URL, is_newer
+from app.config import settings as _settings
+
+_UPDATE_CFG_PATH = _Path(_settings.base_dir) / "data" / "update.json"
+
+
+def _load_update_cfg() -> dict:
+    try:
+        return _json.loads(_UPDATE_CFG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"check_url": DEFAULT_CHECK_URL, "token": ""}
+
+
+def _save_update_cfg(cfg: dict):
+    _UPDATE_CFG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _UPDATE_CFG_PATH.write_text(_json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+class UpdateConfigIn(BaseModel):
+    check_url: str = ""
+    token: str = ""
+
+
+@router.get("/update/config")
+def get_update_config():
+    cfg = _load_update_cfg()
+    return {"check_url": cfg.get("check_url") or DEFAULT_CHECK_URL, "has_token": bool(cfg.get("token"))}
+
+
+@router.put("/update/config")
+def put_update_config(body: UpdateConfigIn):
+    cfg = _load_update_cfg()
+    if body.check_url.strip():
+        cfg["check_url"] = body.check_url.strip()
+    if body.token:
+        cfg["token"] = body.token.strip()
+    elif body.token == "" and "token" in body.model_dump():
+        # 显式传空字符串表示清除 token
+        cfg["token"] = ""
+    _save_update_cfg(cfg)
+    return {"ok": True}
+
+
+@router.get("/update/check")
+async def check_update():
+    """检查 GitHub Releases 是否有新版本。私有仓库需配置 token。"""
+    cfg = _load_update_cfg()
+    url = cfg.get("check_url") or DEFAULT_CHECK_URL
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "AVAgent-Updater"}
+    if cfg.get("token"):
+        headers["Authorization"] = f"Bearer {cfg['token']}"
+    try:
+        async with _httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"检查更新失败：{type(e).__name__}: {e}")
+
+    latest = (data.get("tag_name") or "").lstrip("v") or data.get("name") or ""
+    assets = data.get("assets") or []
+    exe_asset = next((a for a in assets if (a.get("name") or "").lower().endswith(".exe")), None)
+    return {
+        "current_version": LOCAL_VERSION,
+        "latest_version": latest,
+        "has_update": bool(latest) and is_newer(latest, LOCAL_VERSION),
+        "notes": (data.get("body") or "")[:2000],
+        "download_url": exe_asset.get("browser_download_url") if exe_asset else data.get("html_url", ""),
+        "published_at": data.get("published_at"),
+    }

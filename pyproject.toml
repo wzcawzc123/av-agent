@@ -1,0 +1,15 @@
+[project]
+name = "av-agent"
+version = "0.1.0"
+description = "音视频售前工作流 Agent：对话式需求采集 + 大模型适配 + 文档生成"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"

@@ -9,7 +9,7 @@ def test_index_served():
     with TestClient(app) as c:
         r = c.get("/")
         assert r.status_code == 200
-        assert "chat-app" in r.text
+        assert "chat-view" in r.text
 
 
 def test_pwa_manifest_served():

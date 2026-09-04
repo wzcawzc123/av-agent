@@ -88,6 +88,26 @@ def _deviation_items(text: str) -> list[str]:
     return [p.strip(" 、1234567890.。") for p in parts if p.strip()]
 
 
+_GENERIC_SYSTEMS = ("扩声", "发言", "显示", "无纸化", "中控", "矩阵", "分布式",
+                    "灯光", "广播", "视频会议", "会议发言")
+_GENERIC_BRANDS = ("惠威", "MAXHUB", "JBL", "BOSE", "博士", "雷亚", "ITC", "台电",
+                   "华为", "海康", "大华", "利亚德", "洲明", "艾比森", "哈曼",
+                   "铁三角", "舒尔", "索尼", "松下", "JVC", "克莱默", "快思聪")
+_GENERIC_BRAND_RE = re.compile("(?:用|选|配)(" + "|".join(_GENERIC_BRANDS) + ")")
+
+
+def should_use_generic_flow(text: str) -> bool:
+    """通用化架构特征：多系统 / 品牌约束 / 方案类交付 → 走新流程而非老引擎直通。"""
+    hits = sum(1 for kw in _GENERIC_SYSTEMS if kw in text)
+    if hits >= 2:
+        return True
+    if _GENERIC_BRAND_RE.search(text):
+        return True
+    if "方案" in text and ("清单" in text or "列表" in text or "设备" in text):
+        return True
+    return False
+
+
 def detect_engine_intent(text: str) -> dict | None:
     low = text.lower()
     if any(k in low for k in _MEETING_KEY) and any(k in low for k in _MEETING_STRONG):

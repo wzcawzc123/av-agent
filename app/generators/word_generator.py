@@ -1,6 +1,7 @@
 import re
 
 from docx import Document
+from docx.shared import RGBColor
 
 
 def _split_body(body: str) -> list[tuple[str, str]]:
@@ -22,6 +23,8 @@ def _split_body(body: str) -> list[tuple[str, str]]:
             out.append(("bullet", line[2:]))
         elif re.match(r"^\d+[.、]", line):
             out.append(("bullet", re.sub(r"^\d+[.、]\s*", "", line)))
+        elif "【图：" in line and "】" in line:
+            out.append(("image_hint", line))
         else:
             out.append(("para", line))
     return out
@@ -51,6 +54,11 @@ def fill_docx_template(template_path: str | None, replacements: dict, out_path: 
                     elif style == "bullet":
                         np = doc.add_paragraph(t)
                         np.style = doc.styles["List Bullet"]
+                    elif style == "image_hint":
+                        np = doc.add_paragraph()
+                        run = np.add_run(t)
+                        run.italic = True
+                        run.font.color.rgb = RGBColor(0x8A, 0x8A, 0x8A)
                     else:
                         np = doc.add_paragraph(t)
                     anchor._p.addnext(np._p)
@@ -64,6 +72,17 @@ def fill_docx_template(template_path: str | None, replacements: dict, out_path: 
     return out_path
 
 
+_SYSTEM_CN = {
+    "prosound": "专业扩声", "speech": "会议发言", "display": "显示系统",
+    "paperless": "无纸化会议", "control": "中控矩阵", "distributed": "分布式",
+    "lighting": "灯光系统", "broadcast": "公共广播", "videoconf": "视频会议",
+}
+
+
+def _system_name(x) -> str:
+    return _SYSTEM_CN.get(str(x), str(x))
+
+
 def _overview(slots: dict) -> str:
     systems = slots.get("systems") or []
     name = slots.get("scene") or "音视频"
@@ -75,7 +94,7 @@ def _overview(slots: dict) -> str:
         parts.append(f"共{s.get('chairman', 0) + s.get('delegate', 0)}个发言席位"
                      f"（主席{s.get('chairman', 0)}个、代表{s.get('delegate', 0)}个）")
     if systems:
-        parts.append("涵盖系统：" + "、".join(str(x) for x in systems))
+        parts.append("涵盖系统：" + "、".join(_system_name(x) for x in systems))
     if slots.get("brand"):
         parts.append(f"品牌要求：{slots['brand']}")
     return "；".join(parts) + "。"

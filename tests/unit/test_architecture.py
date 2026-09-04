@@ -147,3 +147,15 @@ def test_composer_backfill_with_brand_constraint(db):
         assert filled_display and all(d["brand"] == "MAXHUB" for d in filled_display)
         pending = [d for d in devs if not d["model"]]
         assert pending and all("待选型" in d["note"] for d in pending)
+
+
+def test_generic_flow_guard():
+    """通用化需求必须绕过老引擎直通，简单引擎需求仍可直通。"""
+    from app.engines.intent.detect import should_use_generic_flow
+
+    assert should_use_generic_flow("280平米会议室，需要扩声、发言、显示、灯光，扩声用惠威")
+    assert should_use_generic_flow("会议音响清单，显示用MAXHUB")
+    assert should_use_generic_flow("要文字方案和设计方案excel清单")
+    # 单系统快速配单仍走老引擎
+    assert not should_use_generic_flow("100平米会议室音响设备清单")
+    assert not should_use_generic_flow("1F大厅 24只T-601 12只T-105")

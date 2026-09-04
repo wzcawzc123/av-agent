@@ -5,7 +5,7 @@ from app.generators.word_generator import build_doc_from_llm
 from app.generators.excel_generator import generate_deviation_sheet, build_design_sheet
 from app.generators.ppt_generator import build_ppt
 from app.generators.pdf_converter import convert_docx_to_pdf
-from app.db.template_store import find_config_template
+from app.db.template_store import find_config_template, find_doc_template
 
 
 async def generate_deliverables(cfg: dict, provider, slots: dict, session, progress_cb) -> dict:
@@ -21,7 +21,12 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
     done += 1
     project_dir = cfg["project_dir"]
     os.makedirs(project_dir, exist_ok=True)
-    tpl_paths = cfg.get("template_paths", {})
+    tpl_paths = dict(cfg.get("template_paths", {}))
+    brand_txt = slots.get("brand") or ""
+    if not tpl_paths.get("doc") or not tpl_paths.get("ppt"):
+        doc_tpl = find_doc_template(session, slots.get("scene") or "", brand_txt)
+        if doc_tpl:
+            tpl_paths.setdefault(doc_tpl.type, doc_tpl.file_path)
     for i, dt in enumerate(cfg["deliverables"]):
         progress_cb(int((done + i) / total * 100), f"生成 {dt} …")
         try:

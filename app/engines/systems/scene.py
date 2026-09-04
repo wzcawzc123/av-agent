@@ -9,11 +9,12 @@ import math
 
 
 _SYSTEM_ALIASES = {
-    "matrix": "control", "中控": "control", "矩阵": "control",
+    "matrix": "control", "centralcontrol": "control", "central_control": "control",
+    "中央控制": "control", "中控": "control", "矩阵": "control",
     "扩声": "prosound", "音响": "prosound",
     "发言": "speech", "话筒": "speech",
     "显示": "display", "大屏": "display",
-    "无纸化": "paperless",
+    "无纸化": "paperless", "papless": "paperless", "paperlesss": "paperless",
     "分布式": "distributed",
     "灯光": "lighting",
     "广播": "broadcast",

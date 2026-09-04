@@ -50,6 +50,9 @@ class ConfigTemplate(Base):
     name: Mapped[str] = mapped_column(String(200))
     area: Mapped[int] = mapped_column(Integer, index=True)
     scene: Mapped[str] = mapped_column(String(100), default="")
+    systems: Mapped[str] = mapped_column(Text, default="[]")      # JSON list of system codes
+    config_level: Mapped[str] = mapped_column(String(50), default="")
+    brand: Mapped[str] = mapped_column(String(200), default="")   # 逗号分隔
     config_json: Mapped[str] = mapped_column(Text, default="{}")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 

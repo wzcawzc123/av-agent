@@ -76,10 +76,10 @@ async def chat(body: ChatIn):
         st.transition("COLLECTING")
 
     # 引擎意图直通：命中会议/广播/LED/偏离表时无需模型配置，直接执行并返回
-    from app.engines.intent.detect import detect_engine_intent
+    from app.engines.intent.detect import detect_engine_intent, should_use_generic_flow
     from app.engines.intent.runner import engine_summary, run_engine
 
-    intent = detect_engine_intent(body.text)
+    intent = detect_engine_intent(body.text) if not should_use_generic_flow(body.text) else None
     if intent:
         result = run_engine(intent["engine"], intent["params"])
         return {

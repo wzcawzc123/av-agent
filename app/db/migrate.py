@@ -18,6 +18,11 @@ _TABLE_COLUMNS = {
         ("role_tags", "TEXT DEFAULT '[]'"),
         ("active", "INTEGER DEFAULT 1"),
     ],
+    "config_templates": [
+        ("systems", "TEXT DEFAULT '[]'"),
+        ("config_level", "VARCHAR(50) DEFAULT ''"),
+        ("brand", "VARCHAR(200) DEFAULT ''"),
+    ],
 }
 
 

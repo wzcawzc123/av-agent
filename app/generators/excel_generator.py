@@ -1,6 +1,45 @@
 from openpyxl import Workbook, load_workbook
 
 
+def parse_design_sheet(path) -> list[dict]:
+    """从设计方案清单 xlsx 解析回 BOM 行（供编辑回填）。"""
+    wb = load_workbook(path, read_only=True)
+    ws = wb.active
+    rows, header_idx = [], None
+    for row in ws.iter_rows(values_only=True):
+        cells = ["" if c is None else str(c).strip() for c in row]
+        if not any(cells):
+            continue
+        if "产品名称" in cells and "型号" in cells:
+            header_idx = {c: i for i, c in enumerate(cells)}
+            continue
+        if header_idx is None:
+            continue
+        first = cells[0]
+        if first.startswith("一、") or first.startswith("二、") or first == "报价合计(元)":
+            continue
+        if cells[1] not in ("主要设备", "配件辅材"):
+            continue
+        def g(*names):
+            for n in names:
+                if n in header_idx and header_idx[n] < len(cells) and cells[header_idx[n]]:
+                    return cells[header_idx[n]]
+            return ""
+        rows.append({
+            "category": cells[1],
+            "type": g("产品名称"),
+            "spec": g("规格", "产品规格"),
+            "brand": g("品牌"),
+            "model": g("型号", "产品型号"),
+            "qty": int(float(g("数量") or 0) or 0),
+            "unit": g("单位") or "台",
+            "price": float(g("单价", "单价(元)") or 0),
+            "note": g("备注"),
+        })
+    wb.close()
+    return rows
+
+
 def generate_deviation_sheet(template_path, items: list[dict], out_path: str) -> str:
     if template_path:
         wb = load_workbook(template_path)
@@ -110,5 +149,13 @@ def build_design_sheet(out_path, header, devices, template_path=None):
             ws.append([seq, "配件辅材", d.get("type", ""), d.get("spec", ""),
                        d.get("brand", ""), d.get("model", ""), qty, d.get("unit", "只"),
                        price, round(price * qty, 2), d.get("note", "")])
+    # 报价汇总
+    total = sum(float(d.get("market_price") or d.get("base_price") or 0) * d.get("qty", 1)
+                for d in devices)
+    pending = sum(1 for d in devices if not (d.get("market_price") or d.get("base_price")))
+    ws.append([])
+    ws.append(["报价合计(元)", total])
+    if pending:
+        ws.append(["注", f"{pending} 项待询价（单价为 0，按询价结果更新产品库价格后重新生成即可）"])
     wb.save(out_path)
     return out_path

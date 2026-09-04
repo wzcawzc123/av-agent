@@ -169,6 +169,10 @@
         <input id="tpl-doc-scene" placeholder="场景标签，如 会议室（可空）">
         <input id="tpl-doc-brand" placeholder="品牌标签，如 MAXHUB（可空）">
       </div>
+      <label class="file-picker">
+        <input id="tpl-file" type="file" accept=".docx,.doc,.pptx,.ppt">
+        <span>选择本机模板文件（推荐，自动上传）</span>
+      </label>
     </div>
     <input id="tpl-path" placeholder="文件路径，如 D:/tpl/方案模板.docx">
     <input id="tpl-desc" placeholder="描述（可选）">
@@ -260,6 +264,23 @@
       <button class="btn-primary block" id="dv-run">生成偏离表</button>
       <div id="dv-result" class="eng-result"></div>
     </div>
+  </div>
+
+
+  <!-- ===== 抽屉：清单编辑器 ===== -->
+  <div id="bom-drawer" class="drawer" hidden>
+    <div class="drawer-head">
+      <h3>清单编辑器</h3>
+      <button id="bom-close" class="btn-ghost close-btn" aria-label="关闭">✕</button>
+    </div>
+    <p class="drawer-hint" id="bom-hint">调整数量 / 单价 / 备注，可直接重出 Excel 报价表；单价为空或 0 的行会标注「待询价」。</p>
+    <div id="bom-rows" class="card-list bom-list"></div>
+    <button id="bom-add-row" class="btn-ghost block" style="margin:10px 0">＋ 添加一行</button>
+    <div class="led-row" style="margin-bottom:0">
+      <button id="bom-save" class="btn-primary" style="flex:1">重生成 Excel</button>
+      <button id="bom-as-template" class="btn-ghost" style="flex:1">存为配置模板</button>
+    </div>
+    <div id="bom-result" class="drawer-result"></div>
   </div>
 
   <!-- ===== 抽屉：存为模板 ===== -->

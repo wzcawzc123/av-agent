@@ -28,7 +28,7 @@ def test_import_new(tmp_path, excel_path):
 
 
 def test_import_skips_duplicate(tmp_path, excel_path):
-    """重复型号：跳过不覆盖（价格/名称不被旧文件覆盖）。"""
+    """重复型号：名称不被覆盖；已有价格不被低价值覆盖（仅补 0 价）。"""
     engine = get_engine(f"sqlite:///{tmp_path}/t.db")
     Base.metadata.create_all(engine)
     with get_session(engine) as s:
@@ -43,4 +43,4 @@ def test_import_skips_duplicate(tmp_path, excel_path):
         r = import_products(str(p2), s)
         assert r["inserted"] == 0 and r["updated"] == 0 and r["skipped"] == 1
         got = s.query(Product).filter_by(model="AV-8A").first()
-        assert got.name == "8寸音箱" and got.base_price == 0
+        assert got.name == "8寸音箱" and got.base_price == 800

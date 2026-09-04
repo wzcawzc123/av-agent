@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import or_
 from pydantic import BaseModel
 
@@ -14,6 +14,24 @@ from app.db.template_store import save_template, save_config_template, find_doc_
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 
+
+
+
+class ProductPriceIn(BaseModel):
+    base_price: float = 0
+    market_price: float = 0
+
+
+@router.post("/products/{product_id}/price")
+def update_product_price(product_id: int, body: ProductPriceIn):
+    """更新单条产品价格（前端产品库"改价"）。"""
+    with get_session() as s:
+        p = s.query(Product).filter_by(id=product_id).first()
+        if not p:
+            raise HTTPException(status_code=404, detail="产品不存在")
+        p.base_price = body.base_price
+        p.market_price = body.market_price
+    return {"ok": True, "id": product_id}
 
 @router.get("/products")
 def list_products(q: str = "", brand: str = "", category: str = ""):
@@ -95,6 +113,45 @@ class TemplateIn(BaseModel):
     config_level: str = ""
     brand: str = ""
 
+
+
+
+@router.post("/templates/upload")
+async def upload_template(file: UploadFile = File(...),
+                          name: str = Form(""),
+                          type: str = Form("doc"),
+                          scene: str = Form(""),
+                          brand: str = Form(""),
+                          systems: str = Form("[]"),
+                          description: str = Form("")):
+    """上传 doc/ppt 模板文件：存 UPLOAD_DIR/templates，按 场景×品牌 参与自动选型。"""
+    from app.config import settings
+    if type not in ("doc", "ppt"):
+        raise HTTPException(status_code=400, detail="仅支持 doc/ppt 模板上传")
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in (".docx", ".doc", ".pptx", ".ppt"):
+        raise HTTPException(status_code=400, detail="仅支持 .docx/.doc/.pptx/.ppt 文件")
+    tdir = os.path.join(settings.UPLOAD_DIR, "templates")
+    os.makedirs(tdir, exist_ok=True)
+    base = "".join(ch for ch in (name or "模板") if ch not in '\\/:*?"<>|').strip() or "模板"
+    dest = os.path.join(tdir, f"{base}{ext}")
+    n = 1
+    while os.path.exists(dest):
+        dest = os.path.join(tdir, f"{base}_{n}{ext}")
+        n += 1
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    try:
+        systems_list = json.loads(systems or "[]")
+        if not isinstance(systems_list, list):
+            systems_list = []
+    except Exception:
+        systems_list = []
+    with get_session() as s:
+        t = save_template(s, name or os.path.basename(dest), type, dest,
+                          description, meta={"scene": scene, "brand": brand,
+                                             "systems": systems_list})
+        return {"id": t.id, "file_path": dest, "name": t.name, "type": type}
 
 @router.post("/templates")
 def create_template(body: TemplateIn):

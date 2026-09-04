@@ -556,3 +556,12 @@ body {
 @media (min-width: 900px) {
   #projects-view { width: 100%; max-width: 860px; align-self: center; }
 }
+
+/* 清单编辑器 */
+.bom-list { gap: 8px; }
+.bom-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr .6fr .6fr .8fr 1.2fr; gap: 6px; }
+.bom-grid input { min-width: 0; padding: 6px 8px; font-size: 13px; }
+.bom-row-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.bom-sum { font-size: 12px; color: var(--fg-secondary); }
+.bom-sum b { color: var(--accent); }
+@media (max-width: 480px) { .bom-grid { grid-template-columns: 1fr 1fr; } }

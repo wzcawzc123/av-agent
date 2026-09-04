@@ -23,6 +23,8 @@ _MODEL_COLS = ("型号", "产品型号", "销售型号", "产品型号(新)", "�
 _BRAND_COLS = ("品牌",)
 _DESC_COLS = ("产品描述", "描述", "产品参数")
 _CATEGORY_COLS = ("系统分类", "品类", "分类")
+_PRICE_COLS = {"底价": "base_price", "市场价": "market_price", "单价": "market_price",
+               "报价": "market_price", "价格": "market_price", "销售价": "market_price"}
 _EXTRA_COLS = {  # 扩展列归入 params_json
     "尺寸（长*宽*高）": "size",
     "尺寸(长*宽*高)": "size",
@@ -104,6 +106,19 @@ def _parse_product_row(cells, header, sheet_title, cur_section, inherit_name="")
     name = raw_name or inherit_name or model
     brand = _norm(get(_BRAND_COLS))
     desc = _norm(get(_DESC_COLS))
+    base_price = market_price = 0
+    for col, key in _PRICE_COLS.items():
+        if col in idx:
+            raw = cells[idx[col]]
+            if raw is not None and _norm(raw):
+                try:
+                    v = float(str(raw).replace(",", "").replace("￥", "").replace("¥", "").strip())
+                except ValueError:
+                    v = 0
+                if key == "base_price":
+                    base_price = v
+                elif market_price == 0:
+                    market_price = v
     params = {}
     for col, key in _EXTRA_COLS.items():
         if col in idx:
@@ -124,8 +139,8 @@ def _parse_product_row(cells, header, sheet_title, cur_section, inherit_name="")
         "brand": brand,
         "description": desc,
         "params_json": json.dumps(params, ensure_ascii=False),
-        "base_price": 0,
-        "market_price": 0,
+        "base_price": base_price,
+        "market_price": market_price,
         "category": category,
         "system": tag["system"],
         "role_tags": json.dumps(tag["role_tags"], ensure_ascii=False),
@@ -135,7 +150,7 @@ def _parse_product_row(cells, header, sheet_title, cur_section, inherit_name="")
 
 def import_products_v2(excel_path: str, session) -> dict:
     wb = load_workbook(excel_path, read_only=True)
-    inserted = skipped = 0
+    inserted = skipped = updated = 0
     for ws in wb.worksheets:
         rows_iter = ws.iter_rows(values_only=True)
         header = _find_header(rows_iter)
@@ -155,14 +170,23 @@ def import_products_v2(excel_path: str, session) -> dict:
                 continue
             else:
                 continue
-            if session.query(Product).filter_by(model=data["model"]).first():
-                skipped += 1  # 重复型号：跳过不更新
+            existing = session.query(Product).filter_by(model=data["model"]).first()
+            if existing:
+                # 重复型号：带价清单用于补价（仅当旧价格为 0 时更新）
+                if (data["base_price"] or data["market_price"]) and (existing.base_price == 0 or existing.market_price == 0):
+                    if existing.base_price == 0 and data["base_price"]:
+                        existing.base_price = data["base_price"]
+                    if existing.market_price == 0 and data["market_price"]:
+                        existing.market_price = data["market_price"]
+                    updated += 1
+                else:
+                    skipped += 1
                 continue
             session.add(Product(**data))
             inserted += 1
     session.flush()
     wb.close()
-    return {"inserted": inserted, "updated": 0, "skipped": skipped}
+    return {"inserted": inserted, "updated": updated, "skipped": skipped}
 
 
 # 兼容旧接口（保留原行为，供旧调用方使用）

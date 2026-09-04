@@ -62,6 +62,13 @@ async def _run(t: Task):
 
         with get_session() as s:
             t.result = await generate_deliverables(t.cfg, provider, t.slots, s, cb)
+            bom = t.result.get("bom") or []
+            if bom:
+                from app.db.models import Project
+                from json import dumps
+                p = s.query(Project).filter_by(id=t.project_id).first()
+                if p:
+                    p.bom_json = dumps(bom, ensure_ascii=False)
         t.status = "success"
     except Exception as e:
         t.status = "failed"

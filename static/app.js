@@ -173,6 +173,8 @@
     };
   }
 
+  $("project-list").addEventListener("click", onProjectAction);
+
   // ===== 项目视图 =====
   const STATUS_CN = { IDLE: "新建", COLLECTING: "需求收集中", CONFIRMING: "待确认", GENERATING: "生成中", DELIVERED: "已完成" };
   const KIND_ICON = { doc: "📄", excel: "📊", ppt: "📽", pdf: "📕", deviation: "📋" };
@@ -242,9 +244,12 @@
         box.innerHTML = `<div class="toolbar-hint">暂无产出文件</div>`;
         return;
       }
-      box.innerHTML = data.files.map((f) =>
+      box.innerHTML = `<button class="pact files" data-act="bom" style="margin-bottom:8px">✏️ 编辑清单 / 改价</button>` +
+        data.files.map((f) =>
         `<button class="file-btn" data-dl="${encodeURIComponent(f.path)}">${KIND_ICON[f.kind] || "📁"} ${escapeHtml(f.name)}</button>`).join("");
       box.querySelectorAll("[data-dl]").forEach((el) => el.addEventListener("click", () => download(el.dataset.dl)));
+      const bomBtn = box.querySelector('[data-act="bom"]');
+      if (bomBtn) bomBtn.addEventListener("click", () => openBomEditor(parseInt(pid, 10)));
     }
   }
 
@@ -447,9 +452,21 @@
         </div>
         <div class="prod-row">
           ${p.roles && p.roles.length ? `<span class="tag">${p.roles.map(escapeHtml).join(" ")}</span>` : ""}
+          <button class="item-del prod-price" data-id="${p.id}" data-name="${escapeHtml(p.name)}" data-price="${p.market_price ?? 0}">改价</button>
           <button class="item-del prod-del" data-id="${p.id}">删除</button>
         </div>
       </div>`).join("");
+    box.querySelectorAll(".prod-price").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const cur = parseFloat(btn.dataset.price) || 0;
+        const v = prompt(`修改「${btn.dataset.name}」市场价（元）：`, cur);
+        if (v === null) return;
+        const price = parseFloat(v);
+        if (isNaN(price) || price < 0) { alert("请输入有效价格"); return; }
+        await api(`/api/products/${btn.dataset.id}/price`, { method: "POST", body: JSON.stringify({ market_price: price }) });
+        await loadProducts();
+      });
+    });
     box.querySelectorAll(".prod-del").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("确认删除该产品？")) return;
@@ -535,6 +552,21 @@
     const path = $("tpl-path").value.trim();
     const desc = $("tpl-desc").value.trim();
     if (!name) { $("tpl-list").innerHTML = `<div class="item-card">请填写模板名称。</div>`; return; }
+    if ((type === "doc" || type === "ppt") && $("tpl-file") && $("tpl-file").files[0]) {
+      const fd = new FormData();
+      fd.append("file", $("tpl-file").files[0]);
+      fd.append("name", name);
+      fd.append("type", type);
+      fd.append("description", desc);
+      fd.append("scene", $("tpl-doc-scene").value.trim());
+      fd.append("brand", $("tpl-doc-brand").value.trim());
+      const r = await fetch("/api/templates/upload", { method: "POST", headers: { "X-Access-Token": token() }, body: fd });
+      if (r.status === 401) { localStorage.removeItem(TOKEN_KEY); addMsg("访问口令无效，请重新输入。", "bot"); return; }
+      $("tpl-name").value = ""; $("tpl-desc").value = ""; $("tpl-file").value = "";
+      $("tpl-doc-scene").value = ""; $("tpl-doc-brand").value = "";
+      await loadTemplates();
+      return;
+    }
     let body = { name, type, description: desc, file_path: path };
     if (type === "config") {
       const area = parseInt($("tpl-area").value, 10) || 0;
@@ -688,4 +720,120 @@
       + `<div class='item-card' style='color:${data.low_confidence ? "#b45309" : "#16a34a"}'>低置信度 ${data.low_confidence} 条（将标为「待人工确认」）</div>`
       + engDownload(data.file);
   });
+
+// ===== 清单编辑器（BOM）=====
+let bomProjectId = null;
+
+function bomRowHtml(r) {
+  r = r || {};
+  const esc = escapeHtml;
+  return `
+  <div class="bom-row item-card">
+    <div class="bom-grid">
+      <input class="bom-type" value="${esc(r.type || "")}" placeholder="产品名称">
+      <input class="bom-spec" value="${esc(r.spec || "")}" placeholder="规格">
+      <input class="bom-brand" value="${esc(r.brand || "")}" placeholder="品牌">
+      <input class="bom-model" value="${esc(r.model || "")}" placeholder="型号">
+      <input class="bom-qty" type="number" min="0" value="${r.qty ?? 1}" placeholder="数量">
+      <input class="bom-unit" value="${esc(r.unit || "台")}" placeholder="单位">
+      <input class="bom-price" type="number" min="0" step="0.01" value="${r.price ?? r.market_price ?? ""}" placeholder="单价">
+      <input class="bom-note" value="${esc(r.note || "")}" placeholder="备注">
+    </div>
+    <div class="bom-row-foot">
+      <span class="bom-sum">小计：<b>${((r.price ?? r.market_price ?? 0) * (r.qty ?? 1)).toFixed(2)}</b> 元</span>
+      <button class="item-del bom-del">删除</button>
+    </div>
+  </div>`;
+}
+
+async function openBomEditor(pid) {
+  bomProjectId = pid;
+  $("bom-result").textContent = "";
+  $("bom-hint").textContent = `项目 #${pid} 清单：调整后重出 Excel；单价留空或 0 会标注「待询价」。`;
+  $("bom-rows").innerHTML = `<div class="item-card">加载中…</div>`;
+  $("bom-drawer").hidden = false;
+  const r = await api(`/api/projects/${pid}/bom`);
+  if (!r) { $("bom-rows").innerHTML = `<div class="item-card">加载失败</div>`; return; }
+  const data = await r.json();
+  const rows = data.rows || [];
+  $("bom-rows").innerHTML = rows.length
+    ? rows.map(bomRowHtml).join("")
+    : `<div class="item-card">暂无清单行，请先在「方案对话」中生成方案。</div>`;
+  bindBomRows();
+}
+
+function bindBomRows() {
+  $("bom-rows").querySelectorAll(".bom-del").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.closest(".bom-row").remove();
+      updateBomSums();
+    });
+  });
+  $("bom-rows").querySelectorAll("input").forEach((inp) => {
+    inp.addEventListener("input", () => updateBomSums());
+  });
+}
+
+function updateBomSums() {
+  $("bom-rows").querySelectorAll(".bom-row").forEach((row) => {
+    const qty = parseFloat(row.querySelector(".bom-qty").value) || 0;
+    const price = parseFloat(row.querySelector(".bom-price").value) || 0;
+    row.querySelector(".bom-sum b").textContent = (qty * price).toFixed(2);
+  });
+}
+
+function collectBomRows() {
+  return [...$("bom-rows").querySelectorAll(".bom-row")].map((row) => ({
+    category: "主要设备",
+    type: row.querySelector(".bom-type").value.trim(),
+    spec: row.querySelector(".bom-spec").value.trim(),
+    brand: row.querySelector(".bom-brand").value.trim(),
+    model: row.querySelector(".bom-model").value.trim(),
+    qty: parseInt(row.querySelector(".bom-qty").value, 10) || 1,
+    unit: row.querySelector(".bom-unit").value.trim() || "台",
+    price: parseFloat(row.querySelector(".bom-price").value) || 0,
+    note: row.querySelector(".bom-note").value.trim(),
+  })).filter((r) => r.type || r.model);
+}
+
+$("bom-close").addEventListener("click", () => { $("bom-drawer").hidden = true; });
+$("bom-add-row").addEventListener("click", () => {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = bomRowHtml({ qty: 1, unit: "台" });
+  const node = wrap.firstElementChild;
+  $("bom-rows").appendChild(node);
+  bindBomRows();
+  node.querySelector("input").focus();
+});
+
+$("bom-save").addEventListener("click", async () => {
+  const rows = collectBomRows();
+  if (!rows.length) { $("bom-result").textContent = "清单为空，无法生成。"; return; }
+  $("bom-result").textContent = "正在重出 Excel…";
+  const r = await api(`/api/projects/${bomProjectId}/rebuild`, {
+    method: "POST", body: JSON.stringify({ rows, deliverables: ["excel"] }),
+  });
+  if (!r) return;
+  const data = await r.json();
+  if (data.files && data.files.excel) {
+    $("bom-result").textContent = `✅ 已生成（${rows.length} 行）：${data.files.excel.split("/").pop()}`;
+    loadProjects();
+  } else {
+    $("bom-result").textContent = JSON.stringify(data);
+  }
+});
+
+$("bom-as-template").addEventListener("click", async () => {
+  const rows = collectBomRows();
+  if (!rows.length) { $("bom-result").textContent = "清单为空。"; return; }
+  const name = prompt("保存为配置模板名称：", `项目 #${bomProjectId} 清单模板`);
+  if (!name) return;
+  const r = await api("/api/templates/from-bom", {
+    method: "POST", body: JSON.stringify({ name, rows }),
+  });
+  if (!r) return;
+  const data = await r.json();
+  $("bom-result").textContent = `✅ 已存为模板 #${data.id}`;
+  if (typeof loadTemplates === "function" && !$("templates-drawer").hidden) loadTemplates();
+});
 })();

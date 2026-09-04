@@ -17,10 +17,22 @@ class GenerateIn(BaseModel):
 
 
 @router.post("/generate")
-def generate(body: GenerateIn):
+async def generate(body: GenerateIn):
     from app.config import settings
 
     slots = get_session_slots(body.project_id)
+    if not slots:
+        # 服务重启后内存会话丢失，从 DB 恢复槽位
+        import json
+        from app.db.session import get_session
+        from app.db.models import Project
+        with get_session() as s:
+            p = s.query(Project).filter_by(id=body.project_id).first()
+            if p:
+                try:
+                    slots = json.loads(p.requirement_json or "{}")
+                except Exception:
+                    slots = {}
     project_dir = f"{settings.OUTPUT_DIR}/proj_{body.project_id}"
     cfg = {
         "deliverables": slots.get("deliverables", ["doc"]),

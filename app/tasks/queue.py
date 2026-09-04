@@ -22,7 +22,7 @@ _watchers: dict[int, list[asyncio.Queue]] = {}
 def submit_task(project_id: int, cfg: dict, slots: dict) -> str:
     t = Task(id=uuid.uuid4().hex, project_id=project_id, cfg=cfg, slots=slots)
     _tasks[t.id] = t
-    asyncio.get_event_loop().create_task(_run(t))
+    asyncio.get_running_loop().create_task(_run(t))
     return t.id
 
 

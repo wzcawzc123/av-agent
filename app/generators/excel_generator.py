@@ -76,3 +76,39 @@ def build_led_list(out_path, header, layout, rows, template_path=None):
     ws.append(["总功耗(KW)", layout.get("power_kw", 0), "电缆线径(mm²)", layout.get("cable_mm2", 0)])
     wb.save(out_path)
     return out_path
+
+
+def build_design_sheet(out_path, header, devices, template_path=None):
+    """设计方案设备清单：一、主要设备；二、配件辅材。
+
+    列：序号 | 类别 | 产品名称 | 规格 | 品牌 | 型号 | 数量 | 单位 | 单价 | 总价 | 备注
+    """
+    wb = Workbook() if not template_path else load_workbook(template_path)
+    ws = wb.active
+    ws.append(["", "项目名称", header.get("项目名称", ""), "", "方案日期", header.get("方案日期", "")])
+    ws.append(["序号", "类别", "产品名称", "规格", "品牌", "型号",
+               "数量", "单位", "单价(元)", "总价(元)", "备注"])
+    main_rows = [d for d in devices if d.get("category") == "主设备"]
+    acc_rows = [d for d in devices if d.get("category") != "主设备"]
+    seq = 0
+    if main_rows:
+        ws.append(["一、主要设备"] + [""] * 9)
+        for d in main_rows:
+            seq += 1
+            price = d.get("market_price") or d.get("base_price") or 0
+            qty = d.get("qty", 1)
+            ws.append([seq, "主要设备", d.get("type", ""), d.get("spec", ""),
+                       d.get("brand", ""), d.get("model", ""), qty, d.get("unit", "台"),
+                       price, round(price * qty, 2), d.get("note", "")])
+    if acc_rows:
+        ws.append([])
+        ws.append(["二、配件辅材"] + [""] * 9)
+        for d in acc_rows:
+            seq += 1
+            price = d.get("market_price") or d.get("base_price") or 0
+            qty = d.get("qty", 1)
+            ws.append([seq, "配件辅材", d.get("type", ""), d.get("spec", ""),
+                       d.get("brand", ""), d.get("model", ""), qty, d.get("unit", "只"),
+                       price, round(price * qty, 2), d.get("note", "")])
+    wb.save(out_path)
+    return out_path

@@ -10,12 +10,22 @@ def _validate(result: dict) -> dict:
     if not isinstance(devices, list) or not devices:
         raise ValueError("适配结果缺少 devices")
     for d in devices:
-        if not d.get("type") or not d.get("qty"):
+        if not d.get("type") or d.get("qty") in (None, ""):
             raise ValueError(f"设备项缺字段: {d}")
+        d.setdefault("category", "主设备")
         d.setdefault("spec", "")
+        d.setdefault("brand", "")
         d.setdefault("model", "")
+        d.setdefault("unit", "只" if d.get("category") == "配件辅材" else "台")
         d.setdefault("base_price", 0)
         d.setdefault("market_price", 0)
+        d.setdefault("note", "")
+        try:
+            d["qty"] = int(float(d["qty"]))
+        except (TypeError, ValueError):
+            d["qty"] = 1
+    # 主设备在前，配件辅材在后
+    devices.sort(key=lambda x: 0 if x.get("category") == "主设备" else 1)
     result.setdefault("notes", "")
     return result
 

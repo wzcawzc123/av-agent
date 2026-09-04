@@ -24,6 +24,9 @@ class Product(Base):
     base_price: Mapped[float] = mapped_column(Float, default=0)
     market_price: Mapped[float] = mapped_column(Float, default=0)
     category: Mapped[str] = mapped_column(String(100), default="")
+    system: Mapped[str] = mapped_column(String(50), default="")  # 所属系统 code
+    role_tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of role codes
+    active: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
@@ -131,3 +134,28 @@ class AmplifierTier(Base):
     min_w: Mapped[float] = mapped_column(Float, default=0)
     max_w: Mapped[float] = mapped_column(Float, default=0)
     model: Mapped[str] = mapped_column(String(100))
+
+
+class System(Base):
+    """系统目录：扩声/发言/显示/无纸化/中控矩阵/分布式/灯光/广播/视频会议…"""
+    __tablename__ = "systems"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(Text, default="")
+    sort: Mapped[int] = mapped_column(Integer, default=0)
+    active: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class DeviceRole(Base):
+    """设备角色目录：系统内的设备角色（主音箱/功放/主席单元…），带匹配关键词用于导入打标与检索。"""
+    __tablename__ = "device_roles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    system_code: Mapped[str] = mapped_column(String(50), index=True)
+    role_code: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    role_name: Mapped[str] = mapped_column(String(100))
+    unit: Mapped[str] = mapped_column(String(20), default="台")
+    match_keywords: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
+    sort: Mapped[int] = mapped_column(Integer, default=0)

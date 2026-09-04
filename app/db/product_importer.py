@@ -116,6 +116,8 @@ def _parse_product_row(cells, header, sheet_title, cur_section, inherit_name="")
     else:
         # 子分类与 sheet 同名（如 "1--音视频产品" 段）时不重复拼接
         category = sheet_title if not cur_section or cur_section == sheet_title else f"{sheet_title}/{cur_section}"
+    from app.db.tagger import tag_product
+    tag = tag_product(name, category, brand)
     return {
         "name": name,
         "model": model,
@@ -125,6 +127,9 @@ def _parse_product_row(cells, header, sheet_title, cur_section, inherit_name="")
         "base_price": 0,
         "market_price": 0,
         "category": category,
+        "system": tag["system"],
+        "role_tags": json.dumps(tag["role_tags"], ensure_ascii=False),
+        "active": 1,
     }
 
 

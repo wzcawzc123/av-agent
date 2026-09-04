@@ -6,25 +6,45 @@ from app.llm.prompts import INTENT_PROMPT
 
 
 def extract_json(text: str) -> dict:
-    m = re.search(r"\{.*\}", text, re.S)
-    if not m:
+    if not text:
         raise ValueError("无 JSON 内容")
-    return json.loads(m.group(0))
+    text = text.strip()
+    # 去掉 markdown 代码围栏
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    # 1) 先尝试整体解析
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    # 2) 找到最外层 {...}（从第一个 { 到最后一个 }）
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("无 JSON 内容")
+    candidate = text[start:end + 1]
+    cleaned = re.sub(r",\s*([}\]])", r"\1", candidate)  # 去除尾随逗号
+    for s in (cleaned, candidate, candidate[:-1].rstrip(",;") + "}"):
+        try:
+            return json.loads(s)
+        except Exception:
+            continue
+    raise ValueError(f"JSON 解析失败: {candidate[:200]}")
 
 
-async def parse_intent(provider, user_text: str) -> dict:
+async def parse_intent(provider, user_text: str, known: dict | None = None) -> dict:
+    ctx = f"【已确认信息】{known}\n" if known else ""
     resp = await provider.chat(
         [
             ChatMessage("system", INTENT_PROMPT),
-            ChatMessage("user", user_text),
+            ChatMessage("user", f"{ctx}用户最新输入：{user_text}"),
         ],
         temperature=0.2,
     )
     slots = extract_json(resp)
-    slots.setdefault("area", None)
-    slots.setdefault("scene", None)
-    slots.setdefault("budget", None)
-    slots.setdefault("brand", None)
+    for key in ("area", "scene", "budget", "brand", "systems", "room", "seats",
+                "config_level", "display", "signal_sources"):
+        slots.setdefault(key, None)
     slots.setdefault("deliverables", [])
     slots.setdefault("missing", [])
     return slots

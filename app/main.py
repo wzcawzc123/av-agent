@@ -19,6 +19,18 @@ async def lifespan(app: FastAPI):
     engine = get_engine()
     Base.metadata.create_all(engine)
     ensure_schema(engine)
+    from app.db.session import get_session
+    from app.db.system_seed import seed_system_catalog
+    from app.db.tagger import tag_product
+    from app.db.models import Product
+    with get_session(engine) as s:
+        seed_system_catalog(s)
+        # 旧库产品补齐 system/role_tags（幂等：仅处理未打标行）
+        for p in s.query(Product).filter(Product.system == "").limit(2000):
+            t = tag_product(p.name, p.category, p.brand)
+            if t["system"] or t["role_tags"]:
+                p.system = t["system"]
+                p.role_tags = __import__("json").dumps(t["role_tags"], ensure_ascii=False)
     yield
 
 

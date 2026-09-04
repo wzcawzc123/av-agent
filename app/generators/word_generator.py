@@ -3,7 +3,33 @@ import re
 from docx import Document
 
 
+def _split_body(body: str) -> list[tuple[str, str]]:
+    """把 markdown 文本拆成 (style, text)：heading/bullet/para。"""
+    out = []
+    for line in body.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("#### "):
+            out.append(("heading", line[5:]))
+        elif line.startswith("### "):
+            out.append(("heading", line[4:]))
+        elif line.startswith("## "):
+            out.append(("heading", line[3:]))
+        elif line.startswith("# "):
+            out.append(("heading", line[2:]))
+        elif line.startswith("- ") or line.startswith("* "):
+            out.append(("bullet", line[2:]))
+        elif re.match(r"^\d+[.、]", line):
+            out.append(("bullet", re.sub(r"^\d+[.、]\s*", "", line)))
+        else:
+            out.append(("para", line))
+    return out
+
+
 def fill_docx_template(template_path: str | None, replacements: dict, out_path: str) -> str:
+    pattern = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+
     if template_path:
         doc = Document(template_path)
     else:
@@ -11,16 +37,48 @@ def fill_docx_template(template_path: str | None, replacements: dict, out_path: 
         doc.add_paragraph("{{项目名称}}")
         doc.add_paragraph("{{项目概述}}")
         doc.add_paragraph("{{方案正文}}")
-    pattern = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
-    for para in doc.paragraphs:
-        def _sub(m):
-            key = m.group(1)
-            return str(replacements.get(key, m.group(0)))
-
-        para.text = pattern.sub(_sub, para.text)
+    for para in list(doc.paragraphs):
+        text = para.text
+        if "{{方案正文}}" in text:
+            body = str(replacements.get("方案正文", ""))
+            if body:
+                anchor = para
+                for style, t in _split_body(body):
+                    if style == "heading":
+                        np = doc.add_paragraph(t)
+                        np.style = doc.styles["Heading 2"]
+                    elif style == "bullet":
+                        np = doc.add_paragraph(t)
+                        np.style = doc.styles["List Bullet"]
+                    else:
+                        np = doc.add_paragraph(t)
+                    anchor._p.addnext(np._p)
+                    anchor = np
+            para._p.getparent().remove(para._p)
+        else:
+            new_text = pattern.sub(lambda m: str(replacements.get(m.group(1), m.group(0))), text)
+            if new_text != text:
+                para.text = new_text
     doc.save(out_path)
     return out_path
+
+
+def _overview(slots: dict) -> str:
+    systems = slots.get("systems") or []
+    name = slots.get("scene") or "音视频"
+    parts = [f"{name}项目"]
+    if slots.get("area"):
+        parts.append(f"面积约{slots['area']}㎡")
+    if slots.get("seats"):
+        s = slots["seats"]
+        parts.append(f"共{s.get('chairman', 0) + s.get('delegate', 0)}个发言席位"
+                     f"（主席{s.get('chairman', 0)}个、代表{s.get('delegate', 0)}个）")
+    if systems:
+        parts.append("涵盖系统：" + "、".join(str(x) for x in systems))
+    if slots.get("brand"):
+        parts.append(f"品牌要求：{slots['brand']}")
+    return "；".join(parts) + "。"
 
 
 async def build_doc_from_llm(provider, slots: dict, devices: list[dict],
@@ -37,4 +95,5 @@ async def build_doc_from_llm(provider, slots: dict, devices: list[dict],
     ], temperature=0.5)
     return fill_docx_template(template_path,
                               {"项目名称": slots.get("scene") or "音视频方案",
+                               "项目概述": _overview(slots),
                                "方案正文": body}, out_path)

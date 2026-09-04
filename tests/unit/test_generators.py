@@ -58,3 +58,26 @@ async def test_build_ppt_no_template(tmp_path):
             if shape.has_text_frame:
                 texts.append(shape.text_frame.text)
     assert any("项目概述" in t for t in texts)
+
+
+def test_fill_docx_renders_markdown_and_overview(tmp_path):
+    from app.generators.word_generator import fill_docx_template
+
+    out = tmp_path / "doc.docx"
+    fill_docx_template(
+        None,
+        {"项目名称": "测试会议室", "项目概述": "概述内容。",
+         "方案正文": "# 一、项目概况\n\n这是正文第一段。\n\n## 1.1 扩声系统\n\n- 主音箱 6 只\n- 功放 3 台\n\n第二段。\n"},
+        str(out),
+    )
+    doc = Document(str(out))
+    paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    assert paras[0] == "测试会议室"
+    assert "概述内容" in paras[1]
+    assert "一、项目概况" in paras[2]
+    assert "这是正文第一段" in paras[3]
+    assert "1.1 扩声系统" in paras[4]
+    assert "主音箱 6 只" in paras[5]
+    assert "功放 3 台" in paras[6]
+    assert "第二段" in paras[7]
+    assert "{{" not in "\n".join(paras)

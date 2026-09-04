@@ -1,13 +1,11 @@
-import json
 import os
 
-from app.llm.adapt import adapt_template
+from app.engines.composer import compose_devices
 from app.generators.word_generator import build_doc_from_llm
-from app.generators.excel_generator import generate_deviation_sheet
+from app.generators.excel_generator import generate_deviation_sheet, build_design_sheet
 from app.generators.ppt_generator import build_ppt
 from app.generators.pdf_converter import convert_docx_to_pdf
 from app.db.template_store import find_config_template
-from app.db.models import Product
 
 
 async def generate_deliverables(cfg: dict, provider, slots: dict, session, progress_cb) -> dict:
@@ -16,15 +14,10 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
     done = 0
     progress_cb(int(10 / total * 100), "匹配常规配置模板…")
     tpl = find_config_template(session, slots.get("area") or 0)
-    products = [
-        {"name": p.name, "model": p.model, "base_price": p.base_price,
-         "market_price": p.market_price}
-        for p in session.query(Product).limit(200)
-    ]
     devices = []
-    if "doc" in cfg["deliverables"] or "ppt" in cfg["deliverables"]:
-        adapted = await adapt_template(provider, slots, tpl, products, session)
-        devices = adapted["devices"]
+    if any(d in cfg["deliverables"] for d in ("doc", "ppt", "excel")):
+        progress_cb(int(20 / total * 100), "编排系统设备清单…")
+        devices = await compose_devices(provider, slots, session, tpl)
     done += 1
     project_dir = cfg["project_dir"]
     os.makedirs(project_dir, exist_ok=True)
@@ -51,6 +44,11 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
                     out,
                 )
                 files["deviation"] = out
+            elif dt == "excel":
+                out = os.path.join(project_dir, "设计方案清单.xlsx")
+                build_design_sheet(out, {"项目名称": slots.get("scene") or "音视频方案"}, devices,
+                                   tpl_paths.get("excel"))
+                files["excel"] = out
             elif dt == "ppt":
                 out = os.path.join(project_dir, "方案.pptx")
                 await build_ppt(provider, slots, devices, tpl_paths.get("ppt"), out)

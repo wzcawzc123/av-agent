@@ -360,7 +360,7 @@ body {
 
 /* 桌面端居中限宽 */
 @media (min-width: 900px) {
-  .app-header, #chat-app { width: 100%; max-width: 860px; }
+  .app-header, #chat-view, #projects-view { width: 100%; max-width: 860px; }
   .msg { max-width: 70%; }
   .composer { max-width: 860px; }
   .drawer { width: 400px; }
@@ -370,20 +370,189 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* 方案工具箱 */
-.engine-card { margin-top: 14px; padding: 12px; background: var(--card-bg, #fff); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.engine-card { margin-top: 14px; padding: 12px; background: var(--bg-elevated); border: 1px solid var(--separator); border-radius: 12px; box-shadow: var(--card-shadow); }
 .engine-title { font-weight: 600; margin-bottom: 6px; }
-.engine-desc { font-size: 12px; color: #6b7280; margin-bottom: 8px; line-height: 1.5; }
-.engine-card textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; margin-bottom: 8px; }
+.engine-desc { font-size: 12px; color: var(--fg-secondary); margin-bottom: 8px; line-height: 1.5; }
+.engine-card textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--separator); border-radius: 8px; font-size: 14px; font-family: inherit; margin-bottom: 8px; }
 .led-row { display: flex; gap: 6px; margin-bottom: 8px; }
 .led-row input, .led-row select { flex: 1; min-width: 0; }
-.engine-card input, .engine-card select { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; margin-bottom: 8px; }
-.chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; margin-bottom: 8px; }
+.engine-card input, .engine-card select { box-sizing: border-box; width: 100%; padding: 8px; border: 1px solid var(--separator); border-radius: 8px; font-size: 14px; margin-bottom: 8px; }
+.chk { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg); margin-bottom: 8px; }
 .chk input { width: auto; margin: 0; }
 .eng-result { margin-top: 8px; }
-.eng-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border-radius: 8px; overflow: hidden; }
-.eng-table th { background: #f3f4f6; text-align: left; padding: 6px 8px; font-weight: 600; white-space: nowrap; }
-.eng-table td { padding: 6px 8px; border-top: 1px solid #f3f4f6; word-break: break-all; }
+.eng-table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--bg-elevated); border-radius: 8px; overflow: hidden; }
+.eng-table th { background: var(--fill); text-align: left; padding: 6px 8px; font-weight: 600; white-space: nowrap; }
+.eng-table td { padding: 6px 8px; border-top: 1px solid var(--separator); word-break: break-all; }
 .eng-dl { margin-top: 8px; }
 .eng-dl a { display: inline-block; padding: 8px 14px; background: #007aff; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; }
 
 .chat-dl { display: inline-block; margin-top: 8px; margin-right: 8px; padding: 6px 12px; background: #007aff; color: #fff; border-radius: 8px; text-decoration: none; font-size: 13px; }
+
+/* ===== 主 Tab（iOS 分段控件） ===== */
+.seg {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  background: var(--fill);
+  border-radius: 999px;
+  padding: 3px;
+}
+.seg-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.seg-btn.active {
+  background: var(--bg-elevated);
+  color: var(--fg);
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+}
+
+/* ===== 示例需求 chips ===== */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+  border: 1px solid var(--separator);
+  background: var(--fill);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+.chip:active { background: var(--fill-strong); transform: scale(.96); }
+
+/* ===== 生成文件按钮 ===== */
+.file-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+  transition: transform .1s ease;
+}
+.file-btn:active { transform: scale(.98); }
+.save-tpl-btn {
+  justify-content: center;
+  background: linear-gradient(135deg, #ffb300, #ff9500);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+
+/* ===== 项目视图 ===== */
+#projects-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+#project-toolbar { padding: 12px 18px 2px; }
+.toolbar-hint { font-size: 12px; color: var(--fg-secondary); }
+.project-list { flex: 1; overflow-y: auto; padding: 12px 14px 20px; display: flex; flex-direction: column; gap: 10px; }
+.project-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--separator);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--card-shadow);
+  animation: msgIn .22s ease;
+}
+.project-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.project-name { font-size: 15px; font-weight: 600; color: var(--fg); }
+.status-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--fg-secondary);
+}
+.status-CONFIRMING { background: rgba(255,149,0,.14); color: #ff9500; }
+.status-GENERATING { background: rgba(0,122,255,.12); color: var(--accent); }
+.status-DELIVERED { background: rgba(52,199,89,.14); color: var(--green); }
+.project-meta { font-size: 12px; color: var(--fg-secondary); margin-top: 6px; line-height: 1.5; }
+.project-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.pact {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+.pact:active { transform: scale(.96); }
+.pact.open { background: var(--accent); color: #fff; }
+.pact.files { background: var(--fill); color: var(--accent); }
+.pact.del { background: rgba(255,59,48,.1); color: var(--red); }
+.project-files { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ===== 空状态 ===== */
+.empty-state { margin: 40px 20px; text-align: center; color: var(--fg-secondary); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-title { font-size: 17px; font-weight: 700; color: var(--fg); margin-bottom: 6px; }
+.empty-desc { font-size: 13px; line-height: 1.6; max-width: 320px; margin: 0 auto 18px; }
+.empty-btn { display: inline-block; }
+
+/* ===== 产品库筛选 ===== */
+.filter-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.filter-input { flex: 1; min-width: 140px; }
+#prod-brand, #prod-cat { flex: 1; min-width: 100px; }
+.prod-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(0,122,255,.1);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.prod-row .item-del { margin-top: 0; }
+
+/* ===== 模板库系统选择 ===== */
+.sys-picker { margin-bottom: 8px; }
+.sys-label { font-size: 12px; color: var(--fg-secondary); display: block; margin-bottom: 6px; }
+.sys-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sys-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--fill);
+  border: 1px solid var(--separator);
+  color: var(--fg);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.sys-chip:has(input:checked) {
+  background: rgba(0,122,255,.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sys-chip input { width: auto; margin: 0; accent-color: var(--accent); }
+
+/* ===== 桌面端项目视图限宽 ===== */
+@media (min-width: 900px) {
+  #projects-view { width: 100%; max-width: 860px; align-self: center; }
+}

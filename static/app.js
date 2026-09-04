@@ -7,6 +7,10 @@
   let currentTaskId = null;
   let editingProviderId = null;
   let providersCache = [];
+  let lastBom = null;          // 最近一次生成的主设备清单（存为模板用）
+  let lastSlots = {};
+  let productsCache = [];
+  let allProducts = [];
 
   const $ = (id) => document.getElementById(id);
   const chatLog = $("chat-log");
@@ -17,10 +21,14 @@
   const progressText = $("progress-text");
   const fileList = $("file-list");
 
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
   function addMsg(text, who) {
     const div = document.createElement("div");
     div.className = `msg ${who}`;
-    div.textContent = text;
+    div.innerHTML = text;
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
   }
@@ -45,13 +53,50 @@
     return r;
   }
 
+  // ===== 鉴权下载（fetch blob，绕开 header 限制） =====
+  async function download(path) {
+    ensureToken();
+    const r = await fetch(`/api/download?path=${encodeURIComponent(path)}`, { headers: authHeaders() });
+    if (!r.ok) { addMsg(`下载失败（${r.status}）`, "bot"); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = path.split("/").pop();
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  window.__download = download;
+
+  // ===== 主 Tab 切换 =====
+  document.querySelectorAll("#main-tabs .seg-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("#main-tabs .seg-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      const v = btn.dataset.view;
+      $("chat-view").hidden = v !== "chat";
+      $("projects-view").hidden = v !== "projects";
+      if (v === "projects") loadProjects();
+    });
+  });
+
+  // ===== 示例需求快捷输入 =====
+  $("suggest-chips").addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    chatInput.value = chip.textContent.trim();
+    chatInput.focus();
+  });
+
+  // ===== 聊天主流程 =====
   chatLog.addEventListener("click", (e) => {
-    if (e.target.id === "btn-confirm") {
-      startGeneration();
-    }
-    if (e.target.id === "btn-revise") {
-      addMsg("请告诉我需要修改的地方：", "bot");
-    }
+    if (e.target.id === "btn-confirm") startGeneration();
+    if (e.target.id === "btn-revise") addMsg("请告诉我需要修改的地方：", "bot");
+    const dl = e.target.closest("[data-dl]");
+    if (dl) download(dl.dataset.dl);
+  });
+  fileList.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-dl]");
+    if (el) download(el.dataset.dl);
   });
 
   $("chat-form").addEventListener("submit", async (e) => {
@@ -59,22 +104,22 @@
     const text = chatInput.value.trim();
     if (!text) return;
     chatInput.value = "";
-    addMsg(text, "user");
+    addMsg(escapeHtml(text), "user");
     const r = await api("/api/chat", { method: "POST", body: JSON.stringify({ text, project_id: projectId }) });
     if (!r) return;
     const data = await r.json();
     projectId = data.project_id;
-    let replyHtml = data.reply.replace(/\n/g, "<br>");
+    let replyHtml = escapeHtml(data.reply).replace(/\n/g, "<br>");
     if (data.files && data.files.length) {
       replyHtml += "<br>" + data.files.map(f =>
-        `<a href="/api/download?path=${encodeURIComponent(f)}" class="chat-dl">⬇ 下载 ${f.split("/").pop()}</a>`).join(" ");
+        `<button class="chat-dl" data-dl="${encodeURIComponent(f)}">⬇ 下载 ${f.split("/").pop()}</button>`).join(" ");
     }
     addMsg(replyHtml, "bot");
     if (data.status === "CONFIRMING") {
       confirmCard.hidden = false;
-      confirmCard.innerHTML = `<div>${data.reply.replace(/\n/g, "<br>")}</div>
+      confirmCard.innerHTML = `<div>${escapeHtml(data.reply).replace(/\n/g, "<br>")}</div>
         <button id="btn-confirm">确认，开始生成</button>
-        <button id="btn-revise" style="background:#e5e7eb;color:#374151">修改需求</button>`;
+        <button id="btn-revise" class="revise-btn">修改需求</button>`;
     } else {
       confirmCard.hidden = true;
     }
@@ -83,6 +128,7 @@
   async function startGeneration() {
     confirmCard.hidden = true;
     fileList.innerHTML = "";
+    lastBom = null;
     const r = await api("/api/generate", { method: "POST", body: JSON.stringify({ project_id: projectId }) });
     if (!r) return;
     const { task_id } = await r.json();
@@ -99,19 +145,134 @@
         progressBar.hidden = true;
         if (event.status === "success") {
           addMsg("生成完成 ✅", "bot");
-          const files = event.result.files || {};
+          lastBom = (event.result && event.result.bom) || null;
+          lastSlots = {
+            scene: (event.result && event.result.scene) || "",
+            brand: (event.result && event.result.brand) || "",
+          };
+          const files = (event.result && event.result.files) || {};
+          const kinds = { doc: "📄 Word 方案", excel: "📊 Excel 清单", ppt: "📽 PPT 方案", pdf: "📕 PDF 方案", deviation: "📋 偏离表" };
           for (const [kind, path] of Object.entries(files)) {
-            const a = document.createElement("a");
-            a.href = `/api/download?path=${encodeURIComponent(path)}`;
-            a.textContent = `📄 ${kind} → ${path.split("/").pop()}`;
+            const a = document.createElement("button");
+            a.className = "file-btn";
+            a.dataset.dl = path;
+            a.innerHTML = `${kinds[kind] || kind} → ${path.split("/").pop()}`;
             fileList.appendChild(a);
           }
+          if (lastBom && lastBom.length) {
+            const btn = document.createElement("button");
+            btn.className = "file-btn save-tpl-btn";
+            btn.textContent = "⭐ 存为模板";
+            btn.addEventListener("click", openSaveTemplate);
+            fileList.appendChild(btn);
+          }
         } else {
-          addMsg(`生成失败：${event.result?.errors ? JSON.stringify(event.result.errors) : ""}`, "bot");
+          addMsg(`生成失败：${JSON.stringify((event.result && event.result.errors) || {})}`, "bot");
         }
       }
     };
   }
+
+  // ===== 项目视图 =====
+  const STATUS_CN = { IDLE: "新建", COLLECTING: "需求收集中", CONFIRMING: "待确认", GENERATING: "生成中", DELIVERED: "已完成" };
+  const KIND_ICON = { doc: "📄", excel: "📊", ppt: "📽", pdf: "📕", deviation: "📋" };
+
+  async function loadProjects() {
+    const r = await api("/api/projects");
+    if (!r) return;
+    const rows = await r.json();
+    const box = $("project-list");
+    $("project-count").textContent = rows.length ? `共 ${rows.length} 个项目` : "";
+    if (!rows.length) {
+      box.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">🗂</div>
+        <div class="empty-title">还没有项目</div>
+        <div class="empty-desc">在「方案对话」中输入需求并生成方案后，项目会出现在这里，可随时回看与下载。</div>
+        <button class="btn-primary empty-btn" id="empty-go-chat">去生成第一个方案</button>
+      </div>`;
+      $("empty-go-chat").addEventListener("click", () => {
+        document.querySelector('#main-tabs .seg-btn[data-view="chat"]').click();
+      });
+      return;
+    }
+    box.innerHTML = rows.map((p) => {
+      let req = "";
+      try {
+        const j = JSON.parse(p.requirement_json || "{}");
+        req = [j.scene, j.area ? `${j.area}㎡` : "", (j.systems || []).join("、")].filter(Boolean).join(" · ");
+      } catch (e) { req = ""; }
+      return `<div class="project-card" data-id="${p.id}">
+        <div class="project-head">
+          <div class="project-name">${escapeHtml(p.name)}</div>
+          <span class="status-badge status-${p.status}">${STATUS_CN[p.status] || p.status}</span>
+        </div>
+        <div class="project-meta">${escapeHtml(req) || "未填写需求"}</div>
+        <div class="project-actions">
+          <button class="pact open" data-act="open">继续对话</button>
+          <button class="pact files" data-act="files">查看文件</button>
+          <button class="pact del" data-act="del">删除</button>
+        </div>
+        <div class="project-files" hidden></div>
+      </div>`;
+    }).join("");
+  }
+
+  async function onProjectAction(e) {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const card = btn.closest(".project-card");
+    const pid = card.dataset.id;
+    const act = btn.dataset.act;
+    if (act === "open") {
+      projectId = parseInt(pid, 10);
+      document.querySelector('#main-tabs .seg-btn[data-view="chat"]').click();
+      addMsg(`已切换到项目 #${pid}，可直接补充需求或重新生成。`, "bot");
+    } else if (act === "del") {
+      if (!confirm(`确认删除项目 #${pid}？产出文件将一并删除。`)) return;
+      const r = await api(`/api/projects/${pid}`, { method: "DELETE" });
+      if (r) loadProjects();
+    } else if (act === "files") {
+      const box = card.querySelector(".project-files");
+      if (!box.hidden) { box.hidden = true; return; }
+      const r = await api(`/api/projects/${pid}/files`);
+      if (!r) return;
+      const data = await r.json();
+      box.hidden = false;
+      if (!data.files.length) {
+        box.innerHTML = `<div class="toolbar-hint">暂无产出文件</div>`;
+        return;
+      }
+      box.innerHTML = data.files.map((f) =>
+        `<button class="file-btn" data-dl="${encodeURIComponent(f.path)}">${KIND_ICON[f.kind] || "📁"} ${escapeHtml(f.name)}</button>`).join("");
+      box.querySelectorAll("[data-dl]").forEach((el) => el.addEventListener("click", () => download(el.dataset.dl)));
+    }
+  }
+
+  // ===== 存为模板 =====
+  function openSaveTemplate() {
+    $("st-name").value = (lastSlots.scene || "项目") + "配置模板";
+    $("st-scene").value = lastSlots.scene || "";
+    $("st-brand").value = lastSlots.brand || "";
+    $("st-result").textContent = "";
+    $("save-tpl-drawer").hidden = false;
+  }
+  $("st-close").addEventListener("click", () => { $("save-tpl-drawer").hidden = true; });
+  $("st-save").addEventListener("click", async () => {
+    const name = $("st-name").value.trim();
+    if (!name) { $("st-result").textContent = "请填写模板名称"; return; }
+    if (!lastBom || !lastBom.length) { $("st-result").textContent = "没有可保存的清单"; return; }
+    const r = await api("/api/templates/from-bom", {
+      method: "POST",
+      body: JSON.stringify({
+        name, scene: $("st-scene").value.trim(), area: lastSlots.area || 0,
+        systems: lastSlots.systems || [], config_level: lastSlots.config_level || "",
+        brand: $("st-brand").value.trim(), rows: lastBom,
+      }),
+    });
+    if (!r) return;
+    $("st-result").textContent = "已保存到模板库 ✅";
+    setTimeout(() => { $("save-tpl-drawer").hidden = true; }, 900);
+  });
 
   // ===== 模型提供商管理 =====
   $("btnSettings").addEventListener("click", async () => {
@@ -130,12 +291,12 @@
       return;
     }
     box.innerHTML = providersCache.map((p) => {
-      const keyState = p.has_api_key ? `🔑 已填` : `🔒 未填 Key`;
+      const keyState = p.has_api_key ? "🔑 已填" : "🔒 未填 Key";
       const models = (p.models || []).map((m) => m.model_id).join(", ") || "无模型";
       return `
       <div class="item-card">
-        <div class="item-title">${p.name} <span style="color:#6b7280;font-weight:400">${p.is_built_in ? "内置" : "自定义"}</span></div>
-        <div class="item-meta">${p.provider_type} ｜ ${keyState} ｜ 模型：${models}</div>
+        <div class="item-title">${escapeHtml(p.name)} <span style="color:#6b7280;font-weight:400">${p.is_built_in ? "内置" : "自定义"}</span></div>
+        <div class="item-meta">${p.provider_type} ｜ ${keyState} ｜ 模型：${escapeHtml(models)}</div>
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
           <button class="item-del" data-act="edit" data-id="${p.id}">编辑</button>
           <button class="item-del" style="background:#e0f2fe;color:#0369a1" data-act="select" data-id="${p.id}">设为当前</button>
@@ -164,7 +325,7 @@
         method: "PUT",
         body: JSON.stringify({ provider: id, model }),
       });
-      if (r) addMsg(`已切换到 ${p.name}。`, "bot");
+      if (r) addMsg(`已切换到 ${escapeHtml(p.name)}。`, "bot");
       await loadProviders();
       return;
     }
@@ -202,7 +363,7 @@
     editingProviderId = p.id;
     $("pe-name").value = p.name;
     $("pe-base").value = p.base_url;
-    $("pe-key").value = ""; // 掩码不回填，留空表示不修改
+    $("pe-key").value = "";
     $("pe-models").value = (p.models || []).map((m) => m.model_id).join(",");
     $("pe-type").value = p.provider_type || "openai_compatible";
     $("prov-edit-title").textContent = `编辑：${p.name}${p.is_built_in ? "（内置）" : ""}`;
@@ -245,27 +406,64 @@
     if (p) { $("pe-models").value = data.fetched.join(","); }
   });
 
-  // ===== 产品库抽屉 =====
+  // ===== 产品库 =====
   $("btnProducts").addEventListener("click", async () => {
     $("products-drawer").hidden = false;
     await loadProducts();
   });
   $("prod-close").addEventListener("click", () => { $("products-drawer").hidden = true; });
+  ["prod-search", "prod-brand", "prod-cat"].forEach((id) => {
+    $(id).addEventListener("change", () => loadProducts());
+    $(id).addEventListener("input", () => loadProducts());
+  });
 
   async function loadProducts() {
-    const r = await api("/api/products");
+    const q = encodeURIComponent($("prod-search").value.trim());
+    const brand = encodeURIComponent($("prod-brand").value);
+    const cat = encodeURIComponent($("prod-cat").value);
+    const r = await api(`/api/products?q=${q}&brand=${brand}&category=${cat}`);
     if (!r) return;
     const rows = await r.json();
+    productsCache = rows;
+    if (!q && !brand && !cat) allProducts = rows;
+    const pool = allProducts.length ? allProducts : rows;
     const box = $("prod-list");
+    $("prod-count").textContent = rows.length ? `共 ${rows.length} 条` : "";
+    // 动态填充筛选选项（保留当前选中）
+    const brands = [...new Set(pool.map((p) => p.brand || "").filter(Boolean))].sort();
+    const cats = [...new Set(pool.map((p) => p.category || "").filter(Boolean))].sort();
+    fillSelect($("prod-brand"), brands, $("prod-brand").value);
+    fillSelect($("prod-cat"), cats, $("prod-cat").value);
     if (!rows.length) {
-      box.innerHTML = `<div class="item-card">暂无产品，请上传公司产品 Excel。</div>`;
+      box.innerHTML = `<div class="item-card">没有匹配的产品，可调整筛选或上传 Excel。</div>`;
       return;
     }
     box.innerHTML = rows.map((p) => `
       <div class="item-card">
-        <div class="item-title">${p.name}${p.model ? " / " + p.model : ""}</div>
-        <div class="item-meta">分类：${p.category || "—"} ｜ 底价：${p.base_price ?? 0} ｜ 市场价：${p.market_price ?? 0}</div>
+        <div class="item-title">${escapeHtml(p.name)}${p.model ? " / " + escapeHtml(p.model) : ""}</div>
+        <div class="item-meta">
+          分类：${escapeHtml(p.category || "—")}${p.brand ? " ｜ 品牌：" + escapeHtml(p.brand) : ""}
+          ｜ 底价：${p.base_price ?? 0} ｜ 市场价：${p.market_price ?? 0}
+        </div>
+        <div class="prod-row">
+          ${p.roles && p.roles.length ? `<span class="tag">${p.roles.map(escapeHtml).join(" ")}</span>` : ""}
+          <button class="item-del prod-del" data-id="${p.id}">删除</button>
+        </div>
       </div>`).join("");
+    box.querySelectorAll(".prod-del").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("确认删除该产品？")) return;
+        await api(`/api/products/${btn.dataset.id}`, { method: "DELETE" });
+        await loadProducts();
+      });
+    });
+  }
+
+  function fillSelect(sel, values, current) {
+    const prev = sel.value || current;
+    sel.innerHTML = `<option value="">全部${sel === $("prod-brand") ? "品牌" : "系统/分类"}</option>` +
+      values.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+    sel.value = values.includes(prev) ? prev : "";
   }
 
   $("prod-upload").addEventListener("click", async () => {
@@ -278,20 +476,24 @@
     if (r.status === 401) { localStorage.removeItem(TOKEN_KEY); addMsg("访问口令无效，请重新输入。", "bot"); return; }
     const data = await r.json();
     $("prod-result").textContent = `导入完成：新增 ${data.inserted}，更新 ${data.updated}`;
+    $("prod-file").value = "";
     await loadProducts();
   });
 
-  // ===== 模板库抽屉 =====
+  // ===== 模板库 =====
   $("btnTemplates").addEventListener("click", async () => {
     $("templates-drawer").hidden = false;
     await loadTemplates();
   });
   $("tpl-close").addEventListener("click", () => { $("templates-drawer").hidden = true; });
 
-  function tplConfigFieldsVisible() {
-    $("tpl-config-fields").style.display = $("tpl-type").value === "config" ? "flex" : "none";
+  function tplFieldsVisible() {
+    const t = $("tpl-type").value;
+    $("tpl-config-fields").style.display = t === "config" ? "block" : "none";
+    $("tpl-doc-fields").style.display = (t === "doc" || t === "ppt") ? "block" : "none";
   }
-  $("tpl-type").addEventListener("change", tplConfigFieldsVisible);
+  $("tpl-type").addEventListener("change", tplFieldsVisible);
+  tplFieldsVisible();
 
   async function loadTemplates() {
     const r = await api("/api/templates");
@@ -299,17 +501,28 @@
     const rows = await r.json();
     const box = $("tpl-list");
     if (!rows.length) {
-      box.innerHTML = `<div class="item-card">暂无模板，注册后生成时可套用。</div>`;
+      box.innerHTML = `<div class="item-card">暂无模板，注册后生成时可套用；生成清单后也可一键「存为模板」。</div>`;
       return;
     }
-    box.innerHTML = rows.map((t) => `
+    box.innerHTML = rows.map((t) => {
+      let meta = "";
+      if (t.type === "config") {
+        const tags = [t.area ? `${t.area}㎡` : "", t.scene, t.config_level, t.brand].filter(Boolean);
+        const sys = Array.isArray(t.systems) && t.systems.length ? t.systems.join("+") : "";
+        meta = (tags.length ? tags.join(" · ") : "面积不限") + (sys ? ` ｜ 系统：${sys}` : "");
+      } else {
+        meta = [t.scene, t.brand].filter(Boolean).join(" · ") + (t.file_path ? " ｜ " + t.file_path : "");
+      }
+      return `
       <div class="item-card">
-        <div class="item-title">${t.name} <span style="color:#6b7280;font-weight:400">(${t.type})</span></div>
-        <div class="item-meta">${t.type === "config" ? `适用 ${t.area}㎡` : t.file_path || "—"}${t.description ? " ｜ " + t.description : ""}</div>
+        <div class="item-title">${escapeHtml(t.name)} <span style="color:#6b7280;font-weight:400">(${t.type})</span></div>
+        <div class="item-meta">${escapeHtml(meta)}${t.description ? " ｜ " + escapeHtml(t.description) : ""}</div>
         <button class="item-del" data-id="${t.id}" data-type="${t.type}">删除</button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
     box.querySelectorAll(".item-del").forEach((btn) => {
       btn.addEventListener("click", async () => {
+        if (!confirm("确认删除该模板？")) return;
         await api(`/api/templates/${btn.dataset.id}?type=${btn.dataset.type}`, { method: "DELETE" });
         await loadTemplates();
       });
@@ -324,35 +537,28 @@
     if (!name) { $("tpl-list").innerHTML = `<div class="item-card">请填写模板名称。</div>`; return; }
     let body = { name, type, description: desc, file_path: path };
     if (type === "config") {
-      const area = parseInt($("tpl-area").value, 10);
-      if (!area || area <= 0) { $("tpl-list").innerHTML = `<div class="item-card">请填写正确的适用面积（㎡）。</div>`; return; }
-      body = { name, type: "config", description: desc, file_path: "", area, scene: $("tpl-scene").value.trim() };
-    } else if (!path) {
-      $("tpl-list").innerHTML = `<div class="item-card">请填写模板文件路径。</div>`;
-      return;
+      const area = parseInt($("tpl-area").value, 10) || 0;
+      const systems = [...document.querySelectorAll("#tpl-sys input:checked")].map((c) => c.value);
+      body = {
+        name, type: "config", description: desc, file_path: "",
+        area, scene: $("tpl-scene").value.trim(),
+        systems, config_level: $("tpl-level").value, brand: $("tpl-brand").value.trim(),
+      };
+    } else {
+      if (!path) { $("tpl-list").innerHTML = `<div class="item-card">请填写模板文件路径。</div>`; return; }
+      body = {
+        name, type, description: desc, file_path: path,
+        scene: $("tpl-doc-scene").value.trim(), brand: $("tpl-doc-brand").value.trim(),
+      };
     }
     const r = await api("/api/templates", { method: "POST", body: JSON.stringify(body) });
     if (!r) return;
     $("tpl-name").value = ""; $("tpl-path").value = ""; $("tpl-desc").value = "";
-    $("tpl-area").value = ""; $("tpl-scene").value = "";
+    $("tpl-area").value = ""; $("tpl-scene").value = ""; $("tpl-brand").value = "";
+    $("tpl-level").value = ""; $("tpl-doc-scene").value = ""; $("tpl-doc-brand").value = "";
+    document.querySelectorAll("#tpl-sys input:checked").forEach((c) => { c.checked = false; });
     await loadTemplates();
   });
-
-  // ===== 下载文件（带鉴权） =====
-  async function download(path) {
-    ensureToken();
-    const r = await fetch(`/api/download?path=${encodeURIComponent(path)}`, { headers: authHeaders() });
-    if (!r.ok) return;
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = path.split("/").pop();
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  window.__download = download;
-
 
   // ===== 软件更新 =====
   async function loadUpdateCfg() {
@@ -396,11 +602,11 @@
   function engTable(headers, rows) {
     if (!rows.length) return "<div class='item-card'>无数据</div>";
     return `<table class="eng-table"><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${escapeHtml(String(c ?? ""))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   }
 
   function engDownload(path) {
-    return `<div class="eng-dl"><a href="/api/download?path=${encodeURIComponent(path)}">⬇ 下载 Excel（${path.split("/").pop()}）</a></div>`;
+    return `<div class="eng-dl"><button class="chat-dl" data-dl="${encodeURIComponent(path)}">⬇ 下载 Excel（${path.split("/").pop()}）</button></div>`;
   }
 
   async function runEngine(url, body, resultId) {
@@ -409,7 +615,7 @@
     const r = await api(url, { method: "POST", body: JSON.stringify(body) });
     if (!r) { box.innerHTML = ""; return null; }
     const data = await r.json();
-    if (!r.ok) { box.innerHTML = `<div class='item-card' style='color:#b91c1c'>${data.detail || "请求失败"}</div>`; return null; }
+    if (!r.ok) { box.innerHTML = `<div class='item-card' style='color:#b91c1c'>${escapeHtml(data.detail || "请求失败")}</div>`; return null; }
     return data;
   }
 

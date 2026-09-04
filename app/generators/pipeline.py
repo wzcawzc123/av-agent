@@ -61,4 +61,4 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
         except Exception as e:
             errors[dt] = str(e)
     progress_cb(100, "完成")
-    return {"files": files, "errors": errors}
+    return {"files": files, "errors": errors, "bom": devices}

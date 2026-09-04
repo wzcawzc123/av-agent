@@ -3,6 +3,7 @@ import json
 import shutil
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import or_
 from pydantic import BaseModel
 
 from app.api.deps import require_token
@@ -15,14 +16,34 @@ router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 
 
 @router.get("/products")
-def list_products():
+def list_products(q: str = "", brand: str = "", category: str = ""):
     with get_session() as s:
-        rows = s.query(Product).order_by(Product.id.desc()).limit(500).all()
+        query = s.query(Product)
+        if q:
+            like = f"%{q}%"
+            query = query.filter(or_(Product.name.like(like),
+                                     Product.model.like(like),
+                                     Product.brand.like(like)))
+        if brand:
+            query = query.filter(Product.brand == brand)
+        if category:
+            query = query.filter(Product.category == category)
+        rows = query.order_by(Product.id.desc()).limit(1000).all()
         return [{"id": p.id, "name": p.name, "model": p.model,
                  "category": p.category, "brand": p.brand,
                  "description": p.description,
                  "base_price": p.base_price,
                  "market_price": p.market_price} for p in rows]
+
+
+@router.delete("/products/{product_id}")
+def delete_product(product_id: int):
+    with get_session() as s:
+        p = s.query(Product).filter_by(id=product_id).first()
+        if not p:
+            raise HTTPException(status_code=404, detail="产品不存在")
+        s.delete(p)
+    return {"ok": True}
 
 
 @router.post("/products")

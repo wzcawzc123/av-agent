@@ -95,10 +95,12 @@
 
   // ===== 聊天主流程 =====
   chatLog.addEventListener("click", (e) => {
-    if (e.target.id === "btn-confirm") startGeneration();
-    if (e.target.id === "btn-revise") addMsg("请告诉我需要修改的地方：", "bot");
     const dl = e.target.closest("[data-dl]");
     if (dl) download(dl.dataset.dl);
+  });
+  confirmCard.addEventListener("click", (e) => {
+    if (e.target.id === "btn-confirm") startGeneration();
+    if (e.target.id === "btn-revise") addMsg("请告诉我需要修改的地方：", "bot");
   });
   fileList.addEventListener("click", (e) => {
     const el = e.target.closest("[data-dl]");
@@ -631,7 +633,7 @@
     }
   });
 
-  if (!token()) addMsg("请先点击右上角 ⚙️ 或发送消息时输入访问口令。", "bot");
+  if (!isLocalHost() && !token()) addMsg("请先点击右上角 ⚙️ 或发送消息时输入访问口令。", "bot");
 
   // ===== 方案工具箱（四引擎） =====
   $("btnTools").addEventListener("click", () => { $("engines-drawer").hidden = false; });

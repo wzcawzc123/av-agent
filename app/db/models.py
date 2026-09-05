@@ -163,3 +163,38 @@ class DeviceRole(Base):
     unit: Mapped[str] = mapped_column(String(20), default="台")
     match_keywords: Mapped[str] = mapped_column(Text, default="[]")  # JSON list
     sort: Mapped[int] = mapped_column(Integer, default=0)
+class ProductCapability(Base):
+    """产品能力标签：供招标改单能力覆盖判定。capability 为能力码（如 tuner/usb_player/amp_2ch）。"""
+
+    __tablename__ = "product_capabilities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id: Mapped[int] = mapped_column(Integer, index=True)
+    capability: Mapped[str] = mapped_column(String(100), index=True)
+    source: Mapped[str] = mapped_column(String(20), default="rule")  # rule|llm
+    confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class TenderMatch(Base):
+    """招标改单匹配快照：每次上传解析+匹配的结果按行持久化，前端确认后转 BOM。"""
+
+    __tablename__ = "tender_match"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(Integer, index=True)
+    snapshot: Mapped[str] = mapped_column(String(40), default="")  # 时间戳快照标识
+    source_idx: Mapped[int] = mapped_column(Integer, default=0)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    brand: Mapped[str] = mapped_column(String(100), default="")
+    model: Mapped[str] = mapped_column(String(100), default="")
+    qty: Mapped[int] = mapped_column(Integer, default=1)
+    params_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(20), default="no_match")  # matched|partial|no_match|merged|extra|new
+    matched_product_id: Mapped[int] = mapped_column(Integer, default=0)
+    matched_model: Mapped[str] = mapped_column(String(100), default="")
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    remark: Mapped[str] = mapped_column(Text, default="")
+    merged_into: Mapped[str] = mapped_column(String(100), default="")
+    preference: Mapped[str] = mapped_column(String(20), default="higher")  # higher|value
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)

@@ -9,7 +9,7 @@ echo.
 echo [1/4] 安装依赖...
 pip install -r requirements.txt || goto :error
 pip install pyinstaller || goto :error
-pip install pywebview pystray pillow pythonnet || goto :error
+rem desktop deps now via requirements.txt (win32 markers)
 
 echo.
 echo [2/4] 开始打包（约需 2-5 分钟）...

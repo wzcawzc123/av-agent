@@ -10,3 +10,4 @@ cryptography>=42
 pytest>=8.0
 pytest-asyncio>=0.23
 responses>=0.25
+pdfplumber>=0.11

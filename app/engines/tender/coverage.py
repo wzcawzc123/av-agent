@@ -12,6 +12,15 @@ from app.engines.tender.capability import tag_capabilities
 from app.engines.tender.model import TenderMatchRow
 
 
+# 主设备核心能力：独立采购主体（显示/扩声/拾音/摄像/矩阵/会议终端等），不参与合并。
+# 只有附属功能件（mixer/dsp/tuner/preamp/usb_player 等被主机集成的能力）才可被合并。
+CORE_DEVICE_CAPS = {
+    "display", "led_display", "speaker", "ceiling_speaker", "horn_speaker", "soundbar",
+    "power_amp", "broadcast_amp", "mic", "wireless_mic", "paging_mic", "array_mic",
+    "camera", "conference", "matrix", "hdmi_matrix", "video_proc", "control_host", "paperless",
+}
+
+
 def item_caps(name: str, params: list[str]) -> set[str]:
     return {h.capability for h in tag_capabilities(name, " ".join(params or []))}
 
@@ -50,8 +59,9 @@ def detect_merge(rows: list[TenderMatchRow], session: Session) -> int:
                 continue
             jc = pcaps.get(j) or set()
             jreq = caps.get(j) or set()
-            # 能力被 j 的匹配产品覆盖，且 i、j 需求能力不同（避免同类互并）
-            if ic and ic <= jc and not (ic <= jreq):
+            # 能力被 j 的匹配产品覆盖，且 i、j 需求能力不同（避免同类互并）；
+            # 主设备（显示/扩声/拾音等）即使能力被覆盖也不合并，只合并附属功能件
+            if ic and ic <= jc and not (ic <= jreq) and not (ic & CORE_DEVICE_CAPS):
                 ri.merged_into = rj.matched_model or rj.name
                 ri.status = "merged"
                 ri.remark = (ri.remark + "；" if ri.remark else "") + f"功能已被「{rj.name}」顺带覆盖，建议合并"

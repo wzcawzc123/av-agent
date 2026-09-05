@@ -118,6 +118,10 @@ def match_item(session: Session, item: TenderItem, preference: str = "higher") -
     row.score = 1.0 - min(best.score, 1.0)
     row.matched_product_id = best.product.id
     row.matched_model = best.product.model
+    # 回填前端展示字段：品牌取匹配产品，型号优先匹配结果
+    if not row.brand:
+        row.brand = best.product.brand or ''
+    row.model = best.product.model or row.model
     notes = []
     if not seen:
         notes.append(f"品牌「{item.brand}」首次出现，已按全库就近匹配，建议入库该品牌产品")

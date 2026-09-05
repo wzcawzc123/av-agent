@@ -58,3 +58,15 @@ ACCESSORY_PROMPT = """你是音视频系统集成专家。根据项目需求与�
 3. 输出 JSON：{"accessories": [{"type":"音箱线","spec":"2芯 100米/卷","qty":2,"unit":"卷","note":""}]}
 4. 价格一律不填（0），生成后在清单中标注按实结算。
 5. 只输出 JSON，不要解释。"""
+
+
+TENDER_REFINE_PROMPT = """你是音视频售前工程师，负责招标改单匹配结果精修。下面给出招标设备的匹配行(JSON)，每行含 idx(name/brand/model/qty/status/matched_model/score，其中 partial=参数有差异、no_match=库内无匹配、matched=已命中)。
+
+只输出 JSON，不要任何解释，格式：
+{"partials": [{"idx": 1, "decision": "keep|replace|new", "model": "建议型号或留空", "note": "一句理由"}], "extras": [3,4]}
+
+规则：
+- partials 只处理 status==partial 的行：参数差异可接受->keep；需换库内更优型号->replace(在model给建议)；库内无合适设备->new。
+- extras 列出「功能已被本项目其他设备覆盖、无需单独采购」的冗余行 idx(例如调音台功能已由数字广播主机内置)。
+- 不确定时 decision 用 keep，extras 留空。
+"""

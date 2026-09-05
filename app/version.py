@@ -10,7 +10,7 @@
 import re
 
 APP_NAME = "AV Agent"
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 REPO = "wzcawzc123/av-agent"
 DEFAULT_CHECK_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 

@@ -33,7 +33,13 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function isLocalHost() {
+    const h = (location.hostname || "").toLowerCase();
+    return h === "127.0.0.1" || h === "localhost" || h === "::1";
+  }
+
   function ensureToken() {
+    if (isLocalHost()) return "";   // 本机访问免口令
     if (!token()) {
       const q = new URLSearchParams(location.search).get("token");
       if (q) { localStorage.setItem(TOKEN_KEY, q.trim()); }

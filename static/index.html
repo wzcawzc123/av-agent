@@ -23,6 +23,7 @@
     <nav class="seg" id="main-tabs">
       <button class="seg-btn active" data-view="chat">💬 方案对话</button>
       <button class="seg-btn" data-view="projects">📁 项目</button>
+      <button class="seg-btn" data-view="tender">📋 招标改单</button>
     </nav>
   </header>
 
@@ -55,6 +56,26 @@
     <div id="project-toolbar">
       <span id="project-count" class="toolbar-hint"></span>
     </div>
+  <!-- ===== 视图三：招标改单 ===== -->
+  <main id="tender-view" hidden>
+    <div id="tender-toolbar">
+      <span id="tender-project-id" class="toolbar-hint">项目 1</span>
+    </div>
+    <div id="tender-upload">
+      <form id="tender-form" class="composer">
+        <input type="file" id="tender-file-input" accept=".xlsx,.xlsm,.docx,.pdf" class="file-input" />
+        <button type="submit" class="send-btn" id="tender-upload-btn">上传并解析</button>
+      </form>
+    </div>
+    <div id="tender-busy" style="display:none;padding:1rem;text-align:center;">⏳ 解析匹配中...</div>
+    <div id="tender-result" style="display:none;">
+      <div id="tender-summary" class="summary"></div>
+      <div id="tender-table-wrap"></div>
+      <div style="padding:1rem;text-align:center;">
+        <button id="tender-confirm-btn" class="send-btn" style="background:var(--success);min-width:200px;">✓ 确认改单</button>
+      </div>
+    </div>
+  </main>
     <div id="project-list" class="project-list"></div>
   </main>
 
@@ -300,6 +321,7 @@
   </div>
 
   <script src="/app.js"></script>
+  <script src="/tender.js"></script>
   <script>
     if ("serviceWorker" in navigator && window.isSecureContext) {
       navigator.serviceWorker.register("/sw.js").catch(function () {});

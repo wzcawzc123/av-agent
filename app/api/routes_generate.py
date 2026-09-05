@@ -33,6 +33,10 @@ async def generate(body: GenerateIn):
                     slots = json.loads(p.requirement_json or "{}")
                 except Exception:
                     slots = {}
+    from app.orchestrator.clarify import next_question
+    q = next_question(slots)
+    if q:
+        raise HTTPException(status_code=422, detail=f"需求未完整，请先补充：{q}")
     project_dir = f"{settings.OUTPUT_DIR}/proj_{body.project_id}"
     cfg = {
         "deliverables": slots.get("deliverables", ["doc"]),

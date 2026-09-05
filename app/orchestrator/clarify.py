@@ -9,10 +9,27 @@ QUESTIONS = {
 _REQUIRED = ("area", "scene", "budget", "brand", "deliverables")
 
 
+def _is_empty(val) -> bool:
+    """判断槽位值是否为空/未提供/无意义，用于需求完整性门控。"""
+    if val is None:
+        return True
+    if isinstance(val, str):
+        s = val.strip()
+        return not s or s in ("未提供", "无", "未知", "null", "none", "0")
+    if isinstance(val, (list, dict)):
+        return len(val) == 0
+    if isinstance(val, (int, float)):
+        return val == 0
+    return False
+
+
 def next_question(slots: dict) -> str | None:
-    """基于累积槽位判断缺口；slots 即为已合并的会话槽位。"""
-    missing = set(slots.get("missing", []))
+    """基于槽位实际值判断缺口，不再依赖 LLM 返回的 missing 数组。
+
+    缺任何一个关键字段（面积/场景/预算/品牌/交付物）就回问客户，
+    避免在需求不明确时进入生成、浪费 token 且产出缺字段的清单。
+    """
     for key in _REQUIRED:
-        if key in missing:
+        if _is_empty(slots.get(key)):
             return QUESTIONS[key]
     return None

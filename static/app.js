@@ -63,7 +63,11 @@
   async function download(path) {
     ensureToken();
     const r = await fetch(`/api/download?path=${encodeURIComponent(path)}`, { headers: authHeaders() });
-    if (!r.ok) { addMsg(`下载失败（${r.status}）`, "bot"); return; }
+    if (!r.ok) {
+      let msg = `下载失败（${r.status}）`;
+      try { const j = await r.json(); if (j.detail) msg = j.detail; } catch (_) {}
+      addMsg(msg, "bot"); return;
+    }
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

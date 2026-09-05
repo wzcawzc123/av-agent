@@ -134,3 +134,44 @@ def match_distance(tender: DimMap, prod: DimMap) -> tuple[float | None, set[str]
         acc += dim_distance(dim, tender.get(dim), prod.get(dim)) * w
         wsum += w
     return (acc / wsum, common, gaps)
+
+
+# 方向性维度：值越大性能越高（取高/取低偏好只作用于这些维度；
+# impedance/freq 属于匹配型维度，始终对称就近）。
+DIRECTIONAL_DIMS = {"power", "size", "channels", "ratio", "sens", "resolution"}
+
+# 非对称罚分：higher 模式下「不足」重罚、「超出」轻罚；lower 模式反之。
+_PENALTY_SHORT = 1.0
+_PENALTY_OVER = 0.3
+
+
+def _directional_dist(dim: str, t: float, p: float, preference: str) -> float:
+    """有向距离：preference=higher 偏向 p≥t 且最接近；lower 偏向 p≤t；value 对称就近。"""
+    base = max(abs(t), _EPS)
+    if preference == "value" or dim.rstrip("_hi") not in DIRECTIONAL_DIMS:
+        return _norm_dist(t, p)
+    if preference == "higher":
+        if p >= t:
+            return (p - t) / base * _PENALTY_OVER
+        return (t - p) / base * _PENALTY_SHORT
+    # lower
+    if p <= t:
+        return (t - p) / base * _PENALTY_OVER
+    return (p - t) / base * _PENALTY_SHORT
+
+
+def prefer_distance(
+    tender: DimMap, prod: DimMap, preference: str = "higher"
+) -> tuple[float | None, set[str], set[str]]:
+    """带取高/取低偏好的加权距离。返回 (距离, 共同维度, 招标有而产品无的缺口)。"""
+    common = tender.dims() & prod.dims()
+    if not common:
+        return None, set(), tender.dims() - prod.dims()
+    gaps = tender.dims() - prod.dims()
+    wsum = 0.0
+    acc = 0.0
+    for dim in common:
+        w = DIM_WEIGHTS.get(dim.rstrip("_hi"), 1.0)
+        acc += _directional_dist(dim, tender.get(dim).value, prod.get(dim).value, preference) * w
+        wsum += w
+    return (acc / wsum, common, gaps)

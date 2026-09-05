@@ -1,0 +1,43 @@
+# AV-Agent v3.0 企业部署：PostgreSQL（主库）+ Redis（任务队列/缓存）。
+# 默认应用仍走内置 SQLite，本编排为可选的企业级依赖。启动方式：
+#   docker compose up -d
+# 然后以环境变量启用 PG 数据库（URL 示例，密码与上面 POSTGRES_PASSWORD 保持一致）：
+#   AV_DATABASE_URL=postgresql+psycopg://avagent:avagent@localhost:5432/avagent
+#   AV_REDIS_URL=redis://localhost:6379/0
+#   AV_ENV=prod
+#   uvicorn app.main:app --host 0.0.0.0 --port 8000
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: av-agent-postgres
+    environment:
+      # 生产环境务必修改 POSTGRES_PASSWORD
+      POSTGRES_USER: avagent
+      POSTGRES_PASSWORD: avagent
+      POSTGRES_DB: avagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avagent -d avagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: av-agent-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

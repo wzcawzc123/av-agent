@@ -49,6 +49,7 @@ from app.api.routes_generate import router as generate_router
 from app.api.routes_data import router as data_router
 from app.api.routes_settings import router as settings_router
 from app.api.routes_tender import router as tender_router
+from app.api.routes_workflow import router as workflow_router
 
 app.include_router(chat_router)
 app.include_router(projects_router)
@@ -56,5 +57,6 @@ app.include_router(generate_router)
 app.include_router(data_router)
 app.include_router(settings_router)
 app.include_router(tender_router)
+app.include_router(workflow_router)
 
 app.mount("/", StaticFiles(directory=settings.STATIC_DIR, html=True), name="static")

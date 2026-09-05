@@ -7,13 +7,16 @@ _engines: dict[str, object] = {}
 
 
 def get_engine(url: str | None = None):
-    """按 URL 缓存 engine；url 缺省时使用应用默认数据库。"""
+    """按 URL 缓存 engine；url 缺省时优先 settings.DATABASE_URL（PG/Redis 部署），否则使用应用默认 SQLite。"""
     if url is None:
         from app.config import settings
 
-        url = f"sqlite:///{settings.DB_PATH}"
+        url = settings.DATABASE_URL or f"sqlite:///{settings.DB_PATH}"
+    kwargs = {}
+    if url.startswith("sqlite"):
+        kwargs["connect_args"] = {"check_same_thread": False}
     if url not in _engines:
-        _engines[url] = create_engine(url, connect_args={"check_same_thread": False})
+        _engines[url] = create_engine(url, **kwargs)
     return _engines[url]
 
 

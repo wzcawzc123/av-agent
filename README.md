@@ -17,6 +17,40 @@
 - **文档生成**：Word 方案按需转 PDF；偏离表 Excel；PPT 套母版
 - **手机端 UI**：聊天、需求确认、进度条、文件下载、产品上传、模板管理、提供商管理，一页搞定
 - **局域网联动**：手机浏览器控制电脑端完成方案输出，无需安装 App
+- **企业架构（v3.0）**：Planner 拆解需求 → Agent 运行时（6 个可插拔 Agent）→ SalesWorkflow 顺序执行（支持依赖/跳过/错误隔离）→ 企业数据模型（组织/用户/知识库/方案/报价/运行日志），知识库关键词检索 + 项目记忆，PostgreSQL/Redis 可选部署（默认仍为 SQLite，零迁移成本）
+
+## 企业架构（v3.0）
+
+```
+用户 → API → Planner → Agents → Knowledge / Database → Documents
+```
+
+v3.0 在保留原有「对话澄清 → 确认 → 生成」链路的基础上，将生成阶段重构为**计划驱动的 Agent 工作流**：
+
+1. **Planner**（`app/planner/`）：把确认后的需求确定性拆解为计划步骤，不调 LLM。恒有
+   `requirement_analysis → product_selection`，按交付物追加
+   `solution_design`（doc/ppt）、`bom_generation + quotation`（excel/默认）、`document_generation`（ppt/pdf/deviation），步骤带 `depends_on`。
+2. **Agent 运行时**（`app/agents/`）：`BaseAgent` 定义 `analyze / execute / validate`
+   生命周期；6 个具体 Agent（`requirement_analysis / product_selection / solution_design /
+   bom_generation / quotation / document_generation`）模块级自动注册进 `AGENT_REGISTRY`，
+   复用既有 `engines / generators / llm` 能力，AI 调用统一走 `provider.chat` + `prompts.py` 常量。
+3. **SalesWorkflow**（`app/workflow/`）：按计划顺序执行、共享 `WorkflowContext`，
+   尊重 `depends_on`（缺失依赖自动跳过并记 `skipped` 日志）、步骤级错误隔离
+   （异常写 `errors` 继续后续步骤）、进度回调 0-100；
+   每次运行落库 `WorkflowRun` 与逐步骤 `AgentExecutionLog`，返回结构与
+   `generate_deliverables` 一致（`{"files", "errors", "bom"}`）。
+4. **企业数据模型**（`app/db/models.py`）：新增 `Organization / User / KnowledgeDocument /
+   Solution / Quotation / WorkflowRun / AgentExecutionLog`，`Project` 扩展
+   `org_id / customer_name / memory_json`（Project Memory，`app/db/memory.py`
+   提供 `remember / recall` 合并读写）。
+5. **知识库**（`app/knowledge/`）：`KnowledgeDocument` + 纯 Python 关键词检索
+   （title/excerpt/meta 打分，无需向量库），`register_document / list_documents /
+   delete_document / retrieve`。
+6. **部署**：仓库根 `docker-compose.yml` 提供 PostgreSQL 16 + Redis 7，
+   通过 `AV_DATABASE_URL / AV_REDIS_URL / AV_ENV` 切换（未设置时沿用内置 SQLite，行为不变）。
+
+旧接口 `/api/generate`、SSE 任务事件（`progress` / `done`）与前端完全不变，
+测试仍覆盖原有生成管线。设计文档见 [docs/architecture-3.0.md](docs/architecture-3.0.md)。
 
 ## 技术栈
 
@@ -24,7 +58,8 @@
 |---|---|
 | Web 框架 | FastAPI + Uvicorn |
 | 前端 | 单页 HTML+JS（手机浏览器访问） |
-| 数据库 | SQLite（SQLAlchemy） |
+| 数据库 | SQLite 默认（SQLAlchemy）；企业部署可选 PostgreSQL 16（docker-compose + `AV_DATABASE_URL`） |
+| 任务队列/缓存 | 内存队列默认；可选 Redis 7（`AV_REDIS_URL`） |
 | 文档生成 | python-docx / openpyxl / python-pptx |
 | PDF 转换 | LibreOffice headless |
 | 模型调用 | httpx + Provider 适配器（可插拔，13 内置 + 自定义） |
@@ -36,22 +71,27 @@
 ```
 av-agent/
 ├── app/
-│   ├── api/            # REST API 端点
+│   ├── api/            # REST API 端点（含 routes_workflow：工作流/组织/知识库）
 │   ├── orchestrator/   # 对话状态机、意图识别、澄清、确认
+│   ├── planner/        # v3.0 计划生成：PlanStep / Plan / Planner（确定性拆解需求）
+│   ├── agents/         # v3.0 Agent 运行时：BaseAgent 生命周期 + 注册表 + 6 个具体 Agent
+│   ├── workflow/       # v3.0 SalesWorkflow：顺序执行计划、WorkflowContext、进度回调、运行/日志落库
+│   ├── knowledge/      # v3.0 知识库：KnowledgeDocument + 关键词检索（RAG）
 │   ├── llm/            # 模型 Provider 适配层（可插拔）
 │   │   ├── providers/  # openai_compat / anthropic / gemini 客户端
 │   │   ├── provider_store.py  # 内置提供商 + 官方模型目录 + 来源注册 + 增删改查
 │   │   └── registry.py # 客户端工厂（按 provider 类型分派）
 │   ├── generators/     # Word/Excel/PPT 生成 + PDF 转换
 │   ├── tasks/          # 异步任务队列 + SSE 进度
-│   ├── db/             # SQLite 模型、产品导入、模板存储
+│   ├── db/             # SQLite/PG 模型、产品导入、模板存储、memory.py（项目记忆）
 │   └── security/       # 访问鉴权、密钥工具
 ├── static/             # 手机端单页前端（聊天/产品/模板/提供商）
 ├── data/               # 运行时生成：数据库、密钥、providers.json、model.json（git 忽略）
 ├── output/             # 生成文件输出（git 忽略）
 ├── uploads/            # 上传文件暂存（git 忽略）
 ├── tests/              # 单元 / 端到端测试
-├── docs/               # 功能说明书、使用说明书、设计文档
+├── docs/               # 功能说明书、使用说明书、architecture-3.0.md 设计文档
+├── docker-compose.yml  # 企业部署：PostgreSQL 16 + Redis 7（可选）
 ├── exe_entry.py        # PyInstaller 打包入口
 ├── av-agent.spec       # PyInstaller 打包配置
 ├── build_exe.bat       # Windows 一键打包脚本
@@ -94,6 +134,7 @@ build_exe.bat
 
 - [功能说明书](docs/功能说明书.md) — 功能清单、系统架构、数据模型、API 参考
 - [使用说明书](docs/使用说明书.md) — 部署、配置、日常操作、常见问题
+- [v3.0 架构设计](docs/architecture-3.0.md) — Planner / Agent 运行时 / Workflow / 企业数据模型 / 部署设计
 - [设计文档](docs/superpowers/specs/2026-09-04-av-sales-workflow-agent-design.md)
 
 ## 状态
@@ -106,6 +147,7 @@ build_exe.bat
 - [x] M5 加固：单测全覆盖、错误处理、文档
 - [x] M6 分发：手机端 UI 补全（产品/模板管理）+ Windows exe 打包配置
 - [x] M7 模型：13 家内置提供商（含 MiMo）+ 自定义提供商体系（参考 ETA-2 逻辑）
+- [x] v3.0 企业架构：Planner / Agent 运行时（6 Agent）/ SalesWorkflow / 企业数据模型 / 知识库检索 / 项目记忆（SQLite 兼容，PG+Redis 可选部署）
 
 ## 手机端使用（PWA）
 

@@ -24,6 +24,9 @@ _TABLE_COLUMNS = {
     ],
     "projects": [
         ("bom_json", "TEXT DEFAULT '{}'"),
+        ("org_id", "INTEGER"),
+        ("customer_name", "VARCHAR(200) DEFAULT ''"),
+        ("memory_json", "TEXT DEFAULT '{}'"),
     ],
     "config_templates": [
         ("systems", "TEXT DEFAULT '[]'"),
@@ -34,7 +37,9 @@ _TABLE_COLUMNS = {
 
 
 def ensure_schema(engine):
-    """为既有表补齐新增列（幂等）。"""
+    """为既有表补齐新增列（幂等）；仅 SQLite 需要补列迁移，PG 新表由 create_all 建。"""
+    if engine.dialect.name != "sqlite":
+        return
     for table, cols in _TABLE_COLUMNS.items():
         existing = _existing_columns(engine, table)
         additions = [f"{name} {ddl}" for name, ddl in cols if name not in existing]

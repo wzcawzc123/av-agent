@@ -67,6 +67,9 @@ class Project(Base):
     status: Mapped[str] = mapped_column(String(50), default="IDLE")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+    org_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, default=None, index=True)
+    customer_name: Mapped[str] = mapped_column(String(200), default="")
+    memory_json: Mapped[str] = mapped_column(Text, default="{}")
 
 
 class TaskRecord(Base):
@@ -198,3 +201,97 @@ class TenderMatch(Base):
     merged_into: Mapped[str] = mapped_column(String(100), default="")
     preference: Mapped[str] = mapped_column(String(20), default="higher")  # higher|value
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class Organization(Base):
+    """企业组织（企业架构多租户维度）。"""
+    __tablename__ = "organizations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    contact: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class User(Base):
+    """组织内用户。"""
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    org_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, default=None, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str] = mapped_column(String(50), default="")
+    username: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class KnowledgeDocument(Base):
+    """知识库文档：RAG 关键词检索的知识条目。"""
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    doc_type: Mapped[str] = mapped_column(String(50), default="")
+    file_path: Mapped[str] = mapped_column(Text, default="")
+    excerpt: Mapped[str] = mapped_column(Text, default="")
+    meta_json: Mapped[str] = mapped_column(Text, default="{}")
+    org_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, default=None, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class WorkflowRun(Base):
+    """一次完整的工作流运行记录（计划+进度+结果）。"""
+    __tablename__ = "workflow_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    plan_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(50), default="pending")
+    progress: Mapped[float] = mapped_column(Float, default=0)
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+
+
+class AgentExecutionLog(Base):
+    """工作流中单个 Agent 步骤的执行日志。"""
+    __tablename__ = "agent_execution_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("workflow_runs.id"), index=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    step: Mapped[str] = mapped_column(String(100), default="")
+    agent_name: Mapped[str] = mapped_column(String(100), default="")
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # success|failed|skipped
+    detail_json: Mapped[str] = mapped_column(Text, default="{}")
+    error: Mapped[str] = mapped_column(Text, default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+
+
+class Solution(Base):
+    """方案文档：内容与产出文件路径。"""
+    __tablename__ = "solutions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200), default="")
+    content_json: Mapped[str] = mapped_column(Text, default="{}")
+    file_paths_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class Quotation(Base):
+    """报价单：分项明细+总价。"""
+    __tablename__ = "quotations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    total_amount: Mapped[float] = mapped_column(Float, default=0)
+    items_json: Mapped[str] = mapped_column(Text, default="[]")
+    file_path: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(50), default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

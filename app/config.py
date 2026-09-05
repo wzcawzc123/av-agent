@@ -30,6 +30,13 @@ class Settings:
     ACCESS_TOKEN: str = field(
         default_factory=lambda: os.environ.get("AV_ACCESS_TOKEN", secrets.token_urlsafe(16))
     )
+    DATABASE_URL: str | None = field(
+        default_factory=lambda: os.environ.get("AV_DATABASE_URL")
+    )
+    REDIS_URL: str | None = field(
+        default_factory=lambda: os.environ.get("AV_REDIS_URL")
+    )
+    ENV: str = field(default_factory=lambda: os.environ.get("AV_ENV", "dev"))
 
     def __post_init__(self):
         self.DATA_DIR = os.path.join(self.base_dir, "data")

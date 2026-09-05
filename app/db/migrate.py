@@ -14,9 +14,13 @@ _TABLE_COLUMNS = {
         ("antenna_level", "VARCHAR(20)"),
     ],
     "products": [
+        ("brand", "VARCHAR(100) DEFAULT ''"),
+        ("description", "TEXT DEFAULT ''"),
+        ("params_json", "TEXT DEFAULT '{}'"),
         ("system", "VARCHAR(50) DEFAULT ''"),
         ("role_tags", "TEXT DEFAULT '[]'"),
         ("active", "INTEGER DEFAULT 1"),
+        ("updated_at", "DATETIME DEFAULT '1970-01-01 00:00:00'"),
     ],
     "projects": [
         ("bom_json", "TEXT DEFAULT '{}'"),

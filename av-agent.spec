@@ -12,6 +12,7 @@ hiddenimports = (
     + collect_submodules("docx")
     + collect_submodules("pptx")
     + collect_submodules("cryptography")
+    + collect_submodules("pdfplumber")
     # 桌面模式（PyWebView + 托盘）
     + collect_submodules("webview")
     + collect_submodules("pystray")

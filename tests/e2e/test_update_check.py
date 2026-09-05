@@ -81,7 +81,7 @@ def test_check_update_no_update(client, monkeypatch):
 
 def test_check_update_finds_new_release(client, monkeypatch):
     payload = {
-        "tag_name": "v1.1.0",
+        "tag_name": "v2.0.0",
         "body": "新增功能",
         "published_at": "2025-02-02T00:00:00Z",
         "html_url": "https://github.com/wzcawzc123/av-agent/releases/tag/v1.1.0",
@@ -92,6 +92,6 @@ def test_check_update_finds_new_release(client, monkeypatch):
     assert r.status_code == 200
     data = r.json()
     assert data["has_update"] is True
-    assert data["latest_version"] == "1.1.0"
+    assert data["latest_version"] == "2.0.0"
     assert data["download_url"].endswith("AVAgent.exe")
     assert data["notes"] == "新增功能"

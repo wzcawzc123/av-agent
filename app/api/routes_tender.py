@@ -44,7 +44,6 @@ def upload_tender(
     if ext not in (".xlsx", ".xlsm", ".docx", ".pdf"):
         raise HTTPException(status_code=400, detail=f"不支持的文件类型：{ext}")
 
-    # 保存临时文件
     tmp_name = f"{uuid.uuid4().hex}{ext}"
     tmp_path = os.path.join(settings.UPLOAD_DIR, tmp_name)
     with open(tmp_path, "wb") as f:
@@ -61,7 +60,6 @@ def upload_tender(
     if not items:
         raise HTTPException(status_code=400, detail="未从文件中识别到设备需求行")
 
-    # 匹配
     with get_session() as s:
         rows = match_items(s, items)
         n = detect_merge(rows, s)
@@ -90,9 +88,7 @@ def list_snapshots(project_id: int):
         )
         return {
             "ok": True,
-            "snapshots": [
-                {"snapshot": sn, "rows": cnt} for sn, cnt in snaps
-            ],
+            "snapshots": [{"snapshot": sn, "rows": cnt} for sn, cnt in snaps],
         }
 
 
@@ -113,12 +109,6 @@ def get_snapshot(project_id: int, snapshot: str):
 def edit_row(project_id: int, source_idx: int, body: RowEditIn):
     """编辑单行（品牌/型号/状态/备注/偏好）。"""
     with get_session() as s:
-        from app.engines.tender.store import update_row
-
-        rows = load_rows(s, project_id, snapshot="")
-        if not rows:
-            raise HTTPException(status_code=404, detail="未找到匹配行")
-        # 取最新快照
         row = (
             s.query(TenderMatch)
             .filter_by(project_id=project_id, source_idx=source_idx)

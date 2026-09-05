@@ -85,7 +85,7 @@ body {
 .icon-btn:active { background: var(--fill-strong); transform: scale(.92); }
 
 /* 聊天主区 */
-#chat-app {
+#chat-view {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -360,9 +360,9 @@ body {
 
 /* 桌面端居中限宽 */
 @media (min-width: 900px) {
-  .app-header, #chat-view, #projects-view { width: 100%; max-width: 860px; }
+  .app-header, #chat-view, #projects-view { width: 100%; max-width: none; }
   .msg { max-width: 70%; }
-  .composer { max-width: 860px; }
+  .composer { max-width: none; }
   .drawer { width: 400px; }
 }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -554,7 +554,7 @@ body {
 
 /* ===== 桌面端项目视图限宽 ===== */
 @media (min-width: 900px) {
-  #projects-view { width: 100%; max-width: 860px; align-self: center; }
+  #projects-view { width: 100%; max-width: none; align-self: center; }
 }
 
 /* 清单编辑器 */

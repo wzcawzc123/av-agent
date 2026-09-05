@@ -111,6 +111,41 @@ def create_organization(body: OrgIn):
         return {"id": o.id, "name": o.name, "code": o.code, "contact": o.contact}
 
 
+# ---- 企业用户 ----
+
+class UserIn(BaseModel):
+    org_id: int | None = None
+    name: str
+    role: str = ""
+    username: str | None = None
+
+
+@router.get("/users")
+def list_users():
+    from app.db.models import User
+
+    with get_session() as s:
+        rows = s.query(User).order_by(User.id).all()
+        return [{"id": u.id, "org_id": u.org_id, "name": u.name, "role": u.role,
+                 "username": u.username} for u in rows]
+
+
+@router.post("/users")
+def create_user(body: UserIn):
+    from app.db.models import User
+
+    with get_session() as s:
+        if body.username and s.query(User).filter_by(username=body.username).first():
+            raise HTTPException(status_code=400, detail="用户名已存在")
+        if body.org_id and not s.query(Organization).filter_by(id=body.org_id).first():
+            raise HTTPException(status_code=400, detail="组织不存在")
+        u = User(org_id=body.org_id, name=body.name, role=body.role, username=body.username)
+        s.add(u)
+        s.flush()
+        return {"id": u.id, "org_id": u.org_id, "name": u.name, "role": u.role,
+                "username": u.username}
+
+
 # ---- 知识库 ----
 
 class KnowledgeIn(BaseModel):

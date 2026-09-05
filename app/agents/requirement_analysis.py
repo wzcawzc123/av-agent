@@ -27,6 +27,19 @@ class RequirementAnalysisAgent(BaseAgent):
 
     async def execute(self, context) -> None:
         slots = dict(context.slots)
+        # 项目记忆：读取历史上下文，未明确的槽位从记忆回填（与 product_selection 的写入闭环）
+        memory = {}
+        try:
+            from app.db.memory import recall
+
+            memory = recall(context.session, context.project_id) or {}
+            for k in ("brand", "config_level", "scene", "budget", "area"):
+                if not slots.get(k):
+                    v = memory.get(k)
+                    if v not in (None, "", "无"):
+                        slots[k] = v
+        except Exception:
+            memory = {}
         # 兜底默认值：config_level / brand / budget
         slots.setdefault("config_level", "中配")
         slots.setdefault("brand", slots.get("brand") or "无")
@@ -55,6 +68,7 @@ class RequirementAnalysisAgent(BaseAgent):
             "config_level": slots["config_level"],
             "brand": slots.get("brand") or "",
             "deliverables": slots.get("deliverables"),
+            "memory_recalled": bool(memory),
         }
 
     async def validate(self, context) -> bool:

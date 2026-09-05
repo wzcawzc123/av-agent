@@ -1,4 +1,5 @@
 """方案设计 Agent：按品牌×场景选 Word 模板，LLM 生成方案正文；无模型时确定性降级填充。"""
+import json
 import os
 
 from app.agents.base_agent import BaseAgent
@@ -74,7 +75,23 @@ class SolutionDesignAgent(BaseAgent):
         from app.db.template_store import find_doc_template
         from app.generators.word_generator import build_doc_from_llm, fill_docx_template
 
-        slots = context.slots
+        slots = dict(context.slots)
+        # RAG：检索知识库相关文档，注入方案生成上下文（真实消费 retrieve）
+        refs = []
+        try:
+            from app.knowledge.retriever import retrieve
+
+            query = " ".join(filter(None, [
+                slots.get("scene") or "", slots.get("brand") or "",
+                str(slots.get("area") or ""),
+            ]))
+            if query.strip():
+                refs = retrieve(context.session, query, top_k=3) or []
+        except Exception:
+            refs = []
+        if refs:
+            slots["knowledge_refs"] = [f"[{r['title']}] {r.get('excerpt') or ''}"
+                                       for r in refs]
         project_dir = context.cfg.get("project_dir") or ""
         if not project_dir:
             from app.config import settings
@@ -101,7 +118,28 @@ class SolutionDesignAgent(BaseAgent):
         else:
             await build_doc_from_llm(context.provider, slots, devices, tpl_paths.get("doc"), out)
         context.files["doc"] = out
-        context.outputs[self.name] = {"file": out, "mode": mode, "device_count": len(devices)}
+        context.outputs[self.name] = {
+            "file": out, "mode": mode, "device_count": len(devices),
+            "knowledge_refs": len(refs),
+        }
+        # 落 Solution 记录（企业方案库）
+        try:
+            from app.db.models import Solution
+
+            context.session.add(Solution(
+                project_id=context.project_id,
+                title=f"{slots.get('scene') or '音视频'}项目设计方案",
+                content_json=json.dumps({
+                    "mode": mode, "device_count": len(devices),
+                    "scene": slots.get("scene") or "", "brand": slots.get("brand") or "",
+                    "knowledge_refs": len(refs),
+                }, ensure_ascii=False),
+                file_paths_json=json.dumps([out], ensure_ascii=False),
+                status="generated",
+            ))
+            context.session.flush()
+        except Exception:
+            pass  # 方案记录失败不阻塞文档生成
 
     async def validate(self, context) -> bool:
         if not getattr(self, "_active", True):

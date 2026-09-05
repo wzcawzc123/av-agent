@@ -63,7 +63,7 @@ def upload_tender(
 
     # 匹配
     with get_session() as s:
-        rows = match_items(items, s)
+        rows = match_items(s, items)
         n = detect_merge(rows, s)
         refine_rows(rows, llm_enabled=True)
         flag_extras(rows, llm_enabled=True)

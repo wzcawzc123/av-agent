@@ -45,6 +45,7 @@ class TenderMatchRow:
     def to_dict(self) -> dict:
         return {
             "source_idx": self.source_idx,
+            "idx": self.source_idx,
             "name": self.name,
             "brand": self.brand,
             "model": self.model,

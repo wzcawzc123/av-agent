@@ -56,10 +56,14 @@
     <div id="project-toolbar">
       <span id="project-count" class="toolbar-hint"></span>
     </div>
+    <div id="project-list" class="project-list"></div>
+  </main>
+
   <!-- ===== 视图三：招标改单 ===== -->
   <main id="tender-view" hidden>
     <div id="tender-toolbar">
-      <span id="tender-project-id" class="toolbar-hint">项目 1</span>
+      <span id="tender-project-id" class="toolbar-hint">未选择项目（将自动新建）</span>
+      <select id="tender-snapshot-select" style="display:none;max-width:60%;" title="历史快照"></select>
     </div>
     <div id="tender-upload">
       <form id="tender-form" class="composer">
@@ -75,8 +79,6 @@
         <button id="tender-confirm-btn" class="send-btn" style="background:var(--success);min-width:200px;">✓ 确认改单</button>
       </div>
     </div>
-  </main>
-    <div id="project-list" class="project-list"></div>
   </main>
 
   <!-- ===== 抽屉：模型提供商 ===== -->
@@ -191,7 +193,7 @@
         <input id="tpl-doc-brand" placeholder="品牌标签，如 MAXHUB（可空）">
       </div>
       <label class="file-picker">
-        <input id="tpl-file" type="file" accept=".docx,.doc,.pptx,.ppt">
+        <input id="tpl-file" type="file" accept=".docx,.doc,.pptx,.ppt,.xlsx,.xls">
         <span>选择本机模板文件（推荐，自动上传）</span>
       </label>
     </div>

@@ -1,6 +1,6 @@
 /* AV Agent Service Worker：仅在 HTTPS/localhost 下注册生效 */
-const CACHE_NAME = "av-agent-v4";
-const CORE_ASSETS = ["/", "/style.css", "/app.js", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "av-agent-v5";
+const CORE_ASSETS = ["/", "/style.css", "/app.js", "/tender.js", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(CORE_ASSETS)).then(() => self.skipWaiting()));

@@ -2,6 +2,34 @@
   const TOKEN_KEY = "av_access_token";
   const token = () => localStorage.getItem(TOKEN_KEY) || "";
   const authHeaders = () => ({ "Content-Type": "application/json", "X-Access-Token": token() });
+  // 供 tender.js 等共享 token 与当前项目（跨 IIFE）
+  window.__token = token;
+  window.__authHeaders = authHeaders;
+  window.__getProjectId = () => projectId;
+  window.__setProjectId = (pid) => { projectId = pid; notifyTenderProject(); };
+
+  // 全局轻提示（B1：统一错误提示，不依赖聊天气泡）
+  function toast(msg, ms) {
+    let t = $("global-toast");
+    if (!t) {
+      t = document.createElement("div");
+      t.id = "global-toast";
+      t.className = "global-toast";
+      document.body.appendChild(t);
+    }
+    t.textContent = msg || "操作失败";
+    t.classList.add("show");
+    clearTimeout(t._tm);
+    t._tm = setTimeout(() => t.classList.remove("show"), ms || 3200);
+  }
+  window.__toast = toast;
+
+  function notifyTenderProject() {
+    const el = $("tender-project-id");
+    if (!el) return;
+    el.textContent = projectId ? `当前项目：#${projectId}` : "未选择项目（将自动新建）";
+    if (window.__tenderRefresh) window.__tenderRefresh(projectId);
+  }
 
   let projectId = null;
   let currentTaskId = null;
@@ -56,6 +84,12 @@
       addMsg("访问口令无效，请重新输入。", "bot");
       return null;
     }
+    if (!r.ok) {
+      let detail = `请求失败（${r.status}）`;
+      try { const j = await r.json(); if (j) detail = j.detail || j.error || detail; } catch (_) {}
+      r._detail = detail;
+      if (!opts.silent) toast(detail);
+    }
     return r;
   }
 
@@ -85,7 +119,9 @@
       const v = btn.dataset.view;
       $("chat-view").hidden = v !== "chat";
       $("projects-view").hidden = v !== "projects";
+      $("tender-view").hidden = v !== "tender";
       if (v === "projects") loadProjects();
+      if (v === "tender" && window.__tenderEnter) window.__tenderEnter();
     });
   });
 
@@ -119,8 +155,13 @@
     addMsg(escapeHtml(text), "user");
     const r = await api("/api/chat", { method: "POST", body: JSON.stringify({ text, project_id: projectId }) });
     if (!r) return;
-    const data = await r.json();
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.project_id) {
+      if (!r.ok && r._detail) addMsg(`请求失败：${escapeHtml(r._detail)}`, "bot");
+      return;
+    }
     projectId = data.project_id;
+    notifyTenderProject();
     let replyHtml = escapeHtml(data.reply).replace(/\n/g, "<br>");
     if (data.files && data.files.length) {
       replyHtml += "<br>" + data.files.map(f =>
@@ -143,7 +184,12 @@
     lastBom = null;
     const r = await api("/api/generate", { method: "POST", body: JSON.stringify({ project_id: projectId }) });
     if (!r) return;
-    const { task_id } = await r.json();
+    const g = await r.json().catch(() => ({}));
+    if (!r.ok || !g.task_id) {
+      addMsg(`无法开始生成：${escapeHtml((g.detail || (g.error && JSON.stringify(g.error)) || "请先确认需求") )}`, "bot");
+      return;
+    }
+    const task_id = g.task_id;
     currentTaskId = task_id;
     progressBar.hidden = false;
     const es = new EventSource(`/api/tasks/${task_id}/stream`);
@@ -195,6 +241,7 @@
     const r = await api("/api/projects");
     if (!r) return;
     const rows = await r.json();
+    if (!Array.isArray(rows)) { toast("项目列表加载失败"); return; }
     const box = $("project-list");
     $("project-count").textContent = rows.length ? `共 ${rows.length} 个项目` : "";
     if (!rows.length) {
@@ -224,6 +271,7 @@
         <div class="project-actions">
           <button class="pact open" data-act="open">继续对话</button>
           <button class="pact files" data-act="files">查看文件</button>
+          <button class="pact tender" data-act="tender">招标单</button>
           <button class="pact del" data-act="del">删除</button>
         </div>
         <div class="project-files" hidden></div>
@@ -239,8 +287,14 @@
     const act = btn.dataset.act;
     if (act === "open") {
       projectId = parseInt(pid, 10);
+      notifyTenderProject();
       document.querySelector('#main-tabs .seg-btn[data-view="chat"]').click();
       addMsg(`已切换到项目 #${pid}，可直接补充需求或重新生成。`, "bot");
+    } else if (act === "tender") {
+      projectId = parseInt(pid, 10);
+      notifyTenderProject();
+      document.querySelector('#main-tabs .seg-btn[data-view="tender"]').click();
+      if (window.__tenderEnter) window.__tenderEnter();
     } else if (act === "del") {
       if (!confirm(`确认删除项目 #${pid}？产出文件将一并删除。`)) return;
       const r = await api(`/api/projects/${pid}`, { method: "DELETE" });
@@ -295,6 +349,7 @@
   $("btnSettings").addEventListener("click", async () => {
     $("settings-drawer").hidden = false;
     await loadProviders();
+    loadUpdateCfg();
   });
   $("cfg-close").addEventListener("click", () => { $("settings-drawer").hidden = true; });
 
@@ -316,6 +371,7 @@
         <div class="item-meta">${p.provider_type} ｜ ${keyState} ｜ 模型：${escapeHtml(models)}</div>
         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
           <button class="item-del" data-act="edit" data-id="${p.id}">编辑</button>
+          <button class="item-del" style="background:#ecfdf5;color:#047857" data-act="test" data-id="${p.id}">测试连接</button>
           <button class="item-del" style="background:#e0f2fe;color:#0369a1" data-act="select" data-id="${p.id}">设为当前</button>
           ${p.is_built_in ? `
             <button class="item-del" style="background:#e0e7ff;color:#3730a3" data-act="reset" data-id="${p.id}">重置</button>
@@ -330,6 +386,16 @@
   }
 
   async function providerAction(act, id) {
+    if (act === "test") {
+      const p = providersCache.find((x) => x.id === id);
+      toast(`正在测试 ${p ? p.name : ""}…`);
+      const r = await api(`/api/providers/${id}/test`, { method: "POST", silent: true });
+      if (!r) return;
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) toast(`✅ ${p ? p.name : ""} 连接正常${d.model ? "，模型 " + d.model : ""}`);
+      else addMsg(`连接失败：${escapeHtml(d.detail || r._detail || "请检查 Key / Base URL / 模型")}`, "bot");
+      return;
+    }
     if (act === "edit") {
       const p = providersCache.find((x) => x.id === id);
       openProviderEditor(p);
@@ -519,7 +585,7 @@
   function tplFieldsVisible() {
     const t = $("tpl-type").value;
     $("tpl-config-fields").style.display = t === "config" ? "block" : "none";
-    $("tpl-doc-fields").style.display = (t === "doc" || t === "ppt") ? "block" : "none";
+    $("tpl-doc-fields").style.display = (t === "doc" || t === "ppt" || t === "deviation") ? "block" : "none";
   }
   $("tpl-type").addEventListener("change", tplFieldsVisible);
   tplFieldsVisible();
@@ -542,18 +608,37 @@
       } else {
         meta = [t.scene, t.brand].filter(Boolean).join(" · ") + (t.file_path ? " ｜ " + t.file_path : "");
       }
+      const applyBtn = t.type === "config"
+        ? `<button class="item-del" style="background:#ecfdf5;color:#047857" data-act="apply" data-id="${t.id}">套用到清单</button>` : "";
       return `
       <div class="item-card">
         <div class="item-title">${escapeHtml(t.name)} <span style="color:#6b7280;font-weight:400">(${t.type})</span></div>
         <div class="item-meta">${escapeHtml(meta)}${t.description ? " ｜ " + escapeHtml(t.description) : ""}</div>
+        ${applyBtn}
         <button class="item-del" data-id="${t.id}" data-type="${t.type}">删除</button>
       </div>`;
     }).join("");
+    box.querySelectorAll("[data-act='apply']").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const r = await api(`/api/templates/${btn.dataset.id}/bom`);
+        if (!r) return;
+        const d = await r.json();
+        const rows = d.rows || [];
+        if (!rows.length) { toast("该模板没有清单行"); return; }
+        if (!projectId) {
+          toast("请先在「方案对话」创建/选择一个项目");
+          document.querySelector('#main-tabs .seg-btn[data-view="chat"]').click();
+          return;
+        }
+        $("templates-drawer").hidden = true;
+        openBomEditor(projectId, rows);
+      });
+    });
     box.querySelectorAll(".item-del").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("确认删除该模板？")) return;
-        await api(`/api/templates/${btn.dataset.id}?type=${btn.dataset.type}`, { method: "DELETE" });
-        await loadTemplates();
+        const r = await api(`/api/templates/${btn.dataset.id}?type=${btn.dataset.type}`, { method: "DELETE" });
+        if (r) await loadTemplates();
       });
     });
   }
@@ -608,8 +693,9 @@
   async function loadUpdateCfg() {
     const r = await api("/api/update/config");
     if (!r) return;
-    $("upd-url").value = r.check_url || "";
-    $("upd-token").placeholder = r.has_token ? "已配置 Token（留空不修改）" : "GitHub Token（私有仓库选填）";
+    const d = await r.json().catch(() => ({}));
+    $("upd-url").value = d.check_url || "";
+    $("upd-token").placeholder = d.has_token ? "已配置 Token（留空不修改）" : "GitHub Token（私有仓库选填）";
   }
   $("upd-save").addEventListener("click", async () => {
     const url = $("upd-url").value.trim();
@@ -625,15 +711,16 @@
     $("upd-result").textContent = "正在检查更新…";
     const r = await api("/api/update/check");
     if (!r) return;
-    if (r.has_update) {
+    const d = await r.json().catch(() => ({}));
+    if (d.has_update) {
       $("upd-result").innerHTML =
-        `<div class="item-card">🎉 发现新版本 <b>v${r.latest_version}</b>（当前 v${r.current_version}）` +
-        `<br>发布：${r.published_at || "未知"}` +
-        (r.notes ? `<br>更新说明：${escapeHtml(r.notes.slice(0, 500))}` : "") +
-        (r.download_url ? `<br><a href="${r.download_url}" target="_blank" rel="noopener">⬇ 下载新版本</a>` : "") +
+        `<div class="item-card">🎉 发现新版本 <b>v${d.latest_version}</b>（当前 v${d.current_version}）` +
+        `<br>发布：${d.published_at || "未知"}` +
+        (d.notes ? `<br>更新说明：${escapeHtml(d.notes.slice(0, 500))}` : "") +
+        (d.download_url ? `<br><a href="${d.download_url}" target="_blank" rel="noopener">⬇ 下载新版本</a>` : "") +
         `</div>`;
     } else {
-      $("upd-result").innerHTML = `<div class="item-card">✅ 已是最新版本 v${r.current_version}。</div>`;
+      $("upd-result").innerHTML = `<div class="item-card">✅ 已是最新版本 v${d.current_version}。</div>`;
     }
   });
 
@@ -758,19 +845,30 @@ function bomRowHtml(r) {
   </div>`;
 }
 
-async function openBomEditor(pid) {
+async function openBomEditor(pid, prefill) {
   bomProjectId = pid;
   $("bom-result").textContent = "";
-  $("bom-hint").textContent = `项目 #${pid} 清单：调整后重出 Excel；单价留空或 0 会标注「待询价」。`;
+  $("bom-hint").textContent = prefill
+    ? `项目 #${pid}：已套用模板清单，可编辑后保存到项目并重出 Excel。`
+    : `项目 #${pid} 清单：调整后重出 Excel；单价留空或 0 会标注「待询价」。`;
   $("bom-rows").innerHTML = `<div class="item-card">加载中…</div>`;
   $("bom-drawer").hidden = false;
-  const r = await api(`/api/projects/${pid}/bom`);
-  if (!r) { $("bom-rows").innerHTML = `<div class="item-card">加载失败</div>`; return; }
-  const data = await r.json();
-  const rows = data.rows || [];
-  $("bom-rows").innerHTML = rows.length
+  let rows = null;
+  if (prefill) {
+    rows = prefill.map((r) => ({
+      category: "主要设备", type: r.type || "", spec: r.spec || "",
+      brand: r.brand || "", model: r.model || "", qty: r.qty ?? 1,
+      unit: r.unit || "台", price: r.market_price ?? r.price ?? 0, note: r.note || "",
+    }));
+  } else {
+    const r = await api(`/api/projects/${pid}/bom`);
+    if (!r) { $("bom-rows").innerHTML = `<div class="item-card">加载失败</div>`; return; }
+    const data = await r.json();
+    rows = data.rows || null;
+  }
+  $("bom-rows").innerHTML = rows && rows.length
     ? rows.map(bomRowHtml).join("")
-    : `<div class="item-card">暂无清单行，请先在「方案对话」中生成方案。</div>`;
+    : `<div class="item-card">暂无清单行，请先在「方案对话」中生成方案，或在模板库「套用到清单」。</div>`;
   bindBomRows();
 }
 
@@ -826,7 +924,8 @@ $("bom-save").addEventListener("click", async () => {
     method: "POST", body: JSON.stringify({ rows, deliverables: ["excel"] }),
   });
   if (!r) return;
-  const data = await r.json();
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { $("bom-result").textContent = `生成失败：${r._detail || data.detail || "请检查清单内容"}`; return; }
   if (data.files && data.files.excel) {
     $("bom-result").textContent = `✅ 已生成（${rows.length} 行）：${data.files.excel.split("/").pop()}`;
     loadProjects();

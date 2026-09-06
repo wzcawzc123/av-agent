@@ -565,3 +565,21 @@ body {
 .bom-sum { font-size: 12px; color: var(--fg-secondary); }
 .bom-sum b { color: var(--accent); }
 @media (max-width: 480px) { .bom-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ===== 全局轻提示（B1 统一错误提示） ===== */
+.global-toast {
+  position: fixed; left: 50%; bottom: 88px; transform: translate(-50%, 16px);
+  background: rgba(17, 24, 39, 0.92); color: #fff; font-size: 14px;
+  padding: 10px 18px; border-radius: 12px; max-width: 86vw; z-index: 9999;
+  opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25); word-break: break-all;
+}
+.global-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ===== 招标改单：工具栏下拉 ===== */
+#tender-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#tender-toolbar select {
+  font-size: 13px; padding: 6px 10px; border: 1px solid var(--border, #d0d7e5);
+  border-radius: 8px; background: var(--card-bg, #fff); color: inherit;
+}
+.pact.tender { background: #e0f2fe; color: #0369a1; }

@@ -72,7 +72,21 @@ class DocumentGenerationAgent(BaseAgent):
             from app.config import settings
             project_dir = f"{settings.OUTPUT_DIR}/proj_{context.project_id}"
         os.makedirs(project_dir, exist_ok=True)
+        from app.db.template_store import find_doc_template
+
         tpl_paths = dict(context.cfg.get("template_paths") or {})
+        # A5：ppt/deviation 模板缺失时按类型匹配（场景×品牌）并回写 cfg
+        if "ppt" in getattr(self, "_targets", []) and not tpl_paths.get("ppt"):
+            ppt_tpl = find_doc_template(session=context.session, scene=slots.get("scene") or "",
+                                        brand=slots.get("brand") or "", doc_type="ppt")
+            if ppt_tpl:
+                tpl_paths["ppt"] = ppt_tpl.file_path
+        if "deviation" in getattr(self, "_targets", []) and not tpl_paths.get("deviation"):
+            dev_tpl = find_doc_template(session=context.session, scene=slots.get("scene") or "",
+                                        brand=slots.get("brand") or "", doc_type="deviation")
+            if dev_tpl:
+                tpl_paths["deviation"] = dev_tpl.file_path
+        context.cfg["template_paths"] = tpl_paths
         devices = context.bom or []
         targets = getattr(self, "_targets", [])
 
@@ -92,11 +106,20 @@ class DocumentGenerationAgent(BaseAgent):
                 context.errors[self.name] = "PDF 转换失败（需先有 Word，且电脑安装 LibreOffice）"
         if "deviation" in targets:
             out = os.path.join(project_dir, "偏离表.xlsx")
-            generate_deviation_sheet(
-                tpl_paths.get("deviation"),
-                [{"requirement": slots.get("scene") or "需求", "status": "满足", "note": ""}],
-                out,
-            )
+            # A6：优先取本项目最近招标快照的真实比对行，无招标数据才回退占位
+            from app.engines.tender.store import build_deviation_rows
+
+            dev_rows = build_deviation_rows(context.session, context.project_id)
+            if dev_rows:
+                from app.generators.excel_generator import build_deviation_sheet
+
+                build_deviation_sheet(out, {}, dev_rows, tpl_paths.get("deviation"))
+            else:
+                generate_deviation_sheet(
+                    tpl_paths.get("deviation"),
+                    [{"requirement": slots.get("scene") or "需求", "status": "满足", "note": ""}],
+                    out,
+                )
             context.files["deviation"] = out
         context.outputs[self.name] = {"files": dict(context.files)}
 

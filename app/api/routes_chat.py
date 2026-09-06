@@ -11,7 +11,7 @@ from app.orchestrator.clarify import next_question
 from app.orchestrator.confirm import render_summary
 from app.llm.registry import get_provider, load_model_config
 from app.db.session import get_session
-from app.db.models import Project
+from app.db.models import ChatMessage, Project
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 _sessions: dict[int, dict] = {}
@@ -24,6 +24,18 @@ class ChatIn(BaseModel):
 
 def get_session_slots(project_id: int) -> dict:
     return _sessions.get(project_id, {}).get("slots", {})
+
+
+def _save_messages(project_id: int, user_text: str, reply_text: str) -> None:
+    """A10：对话消息历史逐条落库（user/assistant）；失败静默不影响主流程。"""
+    try:
+        with get_session() as s:
+            s.add(ChatMessage(project_id=project_id, role="user",
+                              content=(user_text or "")[:4000]))
+            s.add(ChatMessage(project_id=project_id, role="assistant",
+                              content=(reply_text or "")[:20000]))
+    except Exception:
+        pass
 
 
 def _load_or_create_session(pid: int) -> tuple[int, dict]:
@@ -60,6 +72,7 @@ def _persist(pid: int, sess: dict):
     except Exception:
         pass
 
+
 async def _get_provider(cfg):
     p = get_provider(cfg)
     if inspect.isawaitable(p):
@@ -82,33 +95,39 @@ async def chat(body: ChatIn):
     intent = detect_engine_intent(body.text) if not should_use_generic_flow(body.text) else None
     if intent:
         result = run_engine(intent["engine"], intent["params"])
-        return {
+        reply = {
             "reply": engine_summary(intent["engine"], result),
             "project_id": pid,
             "status": st.status,
             "engine": intent["engine"],
             "files": [result["file"]],
         }
+        _save_messages(pid, body.text, reply["reply"])
+        return reply
 
     cfg = load_model_config()
     if not cfg.get("provider") or not cfg.get("api_key"):
-        return {
+        reply = {
             "reply": "尚未配置模型。请点击右上角 ⚙️ 选择提供商并填写 API Key 后重试。",
             "project_id": pid,
             "status": st.status,
             "need_config": True,
         }
+        _save_messages(pid, body.text, reply["reply"])
+        return reply
     provider = await _get_provider(cfg)
     try:
         new_slots = await parse_intent(provider, body.text, known=slots)
     except Exception:
-        return {
+        reply = {
             "reply": "调用模型失败，请检查 API Key 与网络后重试；也可以在工具箱中直接使用会议/广播/LED/偏离表引擎。",
             "project_id": pid,
             "status": st.status,
             "need_config": True,
             "engine_error": True,
         }
+        _save_messages(pid, body.text, reply["reply"])
+        return reply
     for k, v in new_slots.items():
         if k != "missing" and v not in (None, [], ""):
             slots[k] = v
@@ -117,5 +136,8 @@ async def chat(body: ChatIn):
         st.transition("CONFIRMING")
     _persist(pid, sess)
     if q is None:
-        return {"reply": render_summary(slots), "project_id": pid, "status": st.status}
-    return {"reply": q, "project_id": pid, "status": st.status}
+        reply = {"reply": render_summary(slots), "project_id": pid, "status": st.status}
+    else:
+        reply = {"reply": q, "project_id": pid, "status": st.status}
+    _save_messages(pid, body.text, reply["reply"])
+    return reply

@@ -8,6 +8,15 @@ def _existing_columns(engine, table: str) -> set[str]:
     return {r[1] for r in rows}
 
 
+def _table_exists(engine, table: str) -> bool:
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:t"),
+            {"t": table},
+        ).fetchone()
+    return row is not None
+
+
 _TABLE_COLUMNS = {
     "selection_rules": [
         ("mic_level", "VARCHAR(20)"),
@@ -33,6 +42,12 @@ _TABLE_COLUMNS = {
         ("config_level", "VARCHAR(50) DEFAULT ''"),
         ("brand", "VARCHAR(200) DEFAULT ''"),
     ],
+    "tasks": [
+        ("task_key", "VARCHAR(64) DEFAULT ''"),
+        ("message", "TEXT DEFAULT ''"),
+        ("result_json", "TEXT DEFAULT '{}'"),
+        ("finished_at", "DATETIME"),
+    ],
 }
 
 
@@ -41,6 +56,9 @@ def ensure_schema(engine):
     if engine.dialect.name != "sqlite":
         return
     for table, cols in _TABLE_COLUMNS.items():
+        if not _table_exists(engine, table):
+            # 新表由 create_all 创建，不需要补列迁移（旧库从未存在该表）
+            continue
         existing = _existing_columns(engine, table)
         additions = [f"{name} {ddl}" for name, ddl in cols if name not in existing]
         if additions:

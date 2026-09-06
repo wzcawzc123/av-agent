@@ -98,10 +98,12 @@ class SolutionDesignAgent(BaseAgent):
             project_dir = f"{settings.OUTPUT_DIR}/proj_{context.project_id}"
         os.makedirs(project_dir, exist_ok=True)
         tpl_paths = dict(context.cfg.get("template_paths") or {})
+        # A5：只按 doc 类型选文字方案模板（避免 PPT 模板串扰），并回写 cfg 供后续 Agent 复用
         doc_tpl = find_doc_template(session=context.session, scene=slots.get("scene") or "",
-                                    brand=slots.get("brand") or "")
+                                    brand=slots.get("brand") or "", doc_type="doc")
         if doc_tpl:
-            tpl_paths.setdefault(doc_tpl.type, doc_tpl.file_path)
+            tpl_paths["doc"] = doc_tpl.file_path
+        context.cfg["template_paths"] = tpl_paths
         out = os.path.join(project_dir, "方案.docx")
         devices = context.bom or []
         mode = "llm"

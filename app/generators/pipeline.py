@@ -23,10 +23,18 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
     os.makedirs(project_dir, exist_ok=True)
     tpl_paths = dict(cfg.get("template_paths", {}))
     brand_txt = slots.get("brand") or ""
-    if not tpl_paths.get("doc") or not tpl_paths.get("ppt"):
-        doc_tpl = find_doc_template(session, slots.get("scene") or "", brand_txt)
+    if not tpl_paths.get("doc"):
+        doc_tpl = find_doc_template(session, slots.get("scene") or "", brand_txt, doc_type="doc")
         if doc_tpl:
-            tpl_paths.setdefault(doc_tpl.type, doc_tpl.file_path)
+            tpl_paths["doc"] = doc_tpl.file_path
+    if not tpl_paths.get("ppt"):
+        ppt_tpl = find_doc_template(session, slots.get("scene") or "", brand_txt, doc_type="ppt")
+        if ppt_tpl:
+            tpl_paths["ppt"] = ppt_tpl.file_path
+    if not tpl_paths.get("deviation"):
+        dev_tpl = find_doc_template(session, slots.get("scene") or "", brand_txt, doc_type="deviation")
+        if dev_tpl:
+            tpl_paths["deviation"] = dev_tpl.file_path
     for i, dt in enumerate(cfg["deliverables"]):
         progress_cb(int((done + i) / total * 100), f"生成 {dt} …")
         try:
@@ -43,11 +51,16 @@ async def generate_deliverables(cfg: dict, provider, slots: dict, session, progr
                     errors["pdf"] = "PDF 转换失败（需先有 Word，且电脑安装 LibreOffice）"
             elif dt == "deviation":
                 out = os.path.join(project_dir, "偏离表.xlsx")
-                generate_deviation_sheet(
-                    tpl_paths.get("deviation"),
-                    [{"requirement": slots.get("scene") or "需求", "status": "满足", "note": ""}],
-                    out,
-                )
+                from app.engines.tender.store import build_deviation_rows
+                dev_rows = build_deviation_rows(session, cfg.get("project_id") or 0)
+                if dev_rows:
+                    build_deviation_sheet(out, {}, dev_rows, tpl_paths.get("deviation"))
+                else:
+                    generate_deviation_sheet(
+                        tpl_paths.get("deviation"),
+                        [{"requirement": slots.get("scene") or "需求", "status": "满足", "note": ""}],
+                        out,
+                    )
                 files["deviation"] = out
             elif dt == "excel":
                 out = os.path.join(project_dir, "设计方案清单.xlsx")

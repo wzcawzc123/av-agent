@@ -68,9 +68,18 @@ def find_config_template(session, area: int, scene: str = "", systems: list | No
     return best
 
 
-def find_doc_template(session, scene: str = "", brand: str = "") -> Template | None:
-    """按 brand×scene 标签选文档/PPT 模板；无匹配返回 None（用默认模板）。"""
-    rows = session.query(Template).filter(Template.type.in_(["doc", "ppt"])).all()
+def find_doc_template(session, scene: str = "", brand: str = "",
+                       doc_type: str | None = None) -> Template | None:
+    """按 brand×scene 标签选文档模板；doc_type 指定时只在该类型内评选。
+
+    doc_type 支持 "doc" / "ppt" / "deviation"；缺省保持历史行为（doc+ppt 混选）。
+    """
+    q = session.query(Template)
+    if doc_type:
+        q = q.filter(Template.type == doc_type)
+    else:
+        q = q.filter(Template.type.in_(["doc", "ppt"]))
+    rows = q.all()
     if not rows:
         return None
     b = (brand or "").strip().lower()

@@ -132,3 +132,44 @@ def to_bom_rows(rows: list[TenderMatchRow]) -> list[dict]:
             }
         )
     return out
+
+
+def build_deviation_rows(session, project_id: int, limit: int = 300) -> list[dict]:
+    """由项目最近招标快照生成偏离表行（6 列：seq/device/tender_param/bid_param/deviation/note）。
+
+    - matched    → 满足（投标产品参数覆盖招标要求）
+    - partial    → 部分满足 / 存在偏离
+    - no_match / new → 偏离（库内无匹配，需补充或人工确认）
+    - merged / extra → 与 to_bom_rows 一致剔除（已并入或被判冗余）
+    无快照数据返回 []，调用方回退占位行。
+    """
+    rows = load_rows(session, project_id)
+    if not rows:
+        return []
+    out: list[dict] = []
+    for r in rows:
+        if r.status in ("merged", "extra"):
+            continue
+        tender = " ".join(r.params) if r.params else r.name
+        if r.status == "matched":
+            dev, bid = "满足", r.matched_model or r.model or "—"
+        elif r.status == "partial":
+            dev, bid = "部分满足（存在偏离）", r.matched_model or "（待核）"
+        else:  # no_match / new
+            dev, bid = "偏离（待补充/确认）", "（无匹配产品）"
+        note = r.remark
+        if r.status == "partial" and not note:
+            note = "参数与招标要求不完全一致，建议复核"
+        elif r.status in ("no_match", "new") and not note:
+            note = "产品库无匹配型号，需人工补充"
+        out.append({
+            "seq": len(out) + 1,
+            "device": r.name,
+            "tender_param": tender,
+            "bid_param": bid,
+            "deviation": dev,
+            "note": note,
+        })
+        if len(out) >= limit:
+            break
+    return out

@@ -127,8 +127,9 @@ def build_design_sheet(out_path, header, devices, template_path=None):
     ws.append(["", "项目名称", header.get("项目名称", ""), "", "方案日期", header.get("方案日期", "")])
     ws.append(["序号", "类别", "产品名称", "规格", "品牌", "型号",
                "数量", "单位", "单价(元)", "总价(元)", "备注"])
-    main_rows = [d for d in devices if d.get("category") == "主设备"]
-    acc_rows = [d for d in devices if d.get("category") != "主设备"]
+    # 引擎/流程产出行 category 为「主设备」，BOM 编辑与招标确认行统一为「主要设备」，二者都算主设备
+    main_rows = [d for d in devices if d.get("category") in ("主设备", "主要设备")]
+    acc_rows = [d for d in devices if d.get("category") not in ("主设备", "主要设备")]
     seq = 0
     if main_rows:
         ws.append(["一、主要设备"] + [""] * 9)

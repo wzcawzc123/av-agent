@@ -73,16 +73,26 @@ class Project(Base):
 
 
 class TaskRecord(Base):
+    """后台任务持久化记录：submit 时落库，运行中回写进度，重启后按 task_key 恢复状态。
+
+    与内存 Task 一一对应（task_key = 内存 Task.id）；进程重启后由
+    recover_stale_tasks 把遗留 running/pending 记录置为 failed。
+    """
+
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_key: Mapped[str] = mapped_column(String(64), default="", index=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
     deliverable_type: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="pending")
     progress: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str] = mapped_column(Text, default="")
     error: Mapped[str] = mapped_column(Text, default="")
+    result_json: Mapped[str] = mapped_column(Text, default="{}")
     file_path: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
 
 
 class Setting(Base):
@@ -281,6 +291,18 @@ class Solution(Base):
     content_json: Mapped[str] = mapped_column(Text, default="{}")
     file_paths_json: Mapped[str] = mapped_column(Text, default="[]")
     status: Mapped[str] = mapped_column(String(50), default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+
+class ChatMessage(Base):
+    """对话消息历史：user / assistant 逐条落库，支持多轮上下文与回看（A10）。"""
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    role: Mapped[str] = mapped_column(String(20), default="user")  # user|assistant
+    content: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 

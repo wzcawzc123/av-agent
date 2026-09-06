@@ -37,11 +37,16 @@ async def generate(body: GenerateIn):
     q = next_question(slots)
     if q:
         raise HTTPException(status_code=422, detail=f"需求未完整，请先补充：{q}")
+    # B10：默认交付物继承需求槽位，缺省 doc+excel
+    deliverable_hint = slots.get("deliverables") or ["doc", "excel"]
+    if not isinstance(deliverable_hint, list) or not deliverable_hint:
+        deliverable_hint = ["doc", "excel"]
     project_dir = f"{settings.OUTPUT_DIR}/proj_{body.project_id}"
     cfg = {
-        "deliverables": slots.get("deliverables", ["doc"]),
+        "deliverables": [d for d in deliverable_hint if d] or ["doc", "excel"],
         "project_dir": project_dir,
         "template_paths": {},
+        "project_id": body.project_id,
     }
     task_id = submit_task(body.project_id, cfg, slots)
     return {"task_id": task_id}

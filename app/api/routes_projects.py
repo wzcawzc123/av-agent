@@ -145,3 +145,102 @@ def delete_project(project_id: int):
     if os.path.isdir(project_dir):
         shutil.rmtree(project_dir, ignore_errors=True)
     return {"ok": True}
+
+
+# ---- A10：对话消息历史（读端点；写由 routes_chat 完成） ----
+
+@router.get("/projects/{project_id}/messages")
+def list_project_messages(project_id: int, limit: int = 100):
+    from app.db.models import ChatMessage
+
+    with get_session() as s:
+        rows = (
+            s.query(ChatMessage)
+            .filter_by(project_id=project_id)
+            .order_by(ChatMessage.id.desc())
+            .limit(min(max(limit, 1), 500))
+            .all()
+        )
+        rows = list(reversed(rows))
+        return {
+            "id": project_id,
+            "messages": [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in rows
+            ],
+        }
+
+
+# ---- A11 / E2：Solution / Quotation 读取端点 ----
+
+@router.get("/projects/{project_id}/solutions")
+def list_project_solutions(project_id: int):
+    """方案文档记录列表（写由 solution_design Agent 完成）。"""
+    import json as _json
+
+    from app.db.models import Solution
+
+    with get_session() as s:
+        rows = (
+            s.query(Solution)
+            .filter_by(project_id=project_id)
+            .order_by(Solution.id.desc())
+            .limit(50)
+            .all()
+        )
+        out = []
+        for so in rows:
+            try:
+                content = _json.loads(so.content_json or "{}")
+            except Exception:
+                content = {}
+            try:
+                paths = _json.loads(so.file_paths_json or "[]")
+            except Exception:
+                paths = []
+            out.append({
+                "id": so.id,
+                "title": so.title,
+                "content": content,
+                "files": paths,
+                "status": so.status,
+                "created_at": so.created_at.isoformat() if so.created_at else None,
+            })
+        return {"id": project_id, "solutions": out}
+
+
+@router.get("/projects/{project_id}/quotations")
+def list_project_quotations(project_id: int):
+    """报价记录列表（写由 quotation Agent 完成）。"""
+    import json as _json
+
+    from app.db.models import Quotation
+
+    with get_session() as s:
+        rows = (
+            s.query(Quotation)
+            .filter_by(project_id=project_id)
+            .order_by(Quotation.id.desc())
+            .limit(50)
+            .all()
+        )
+        out = []
+        for q in rows:
+            try:
+                items = _json.loads(q.items_json or "[]")
+            except Exception:
+                items = []
+            out.append({
+                "id": q.id,
+                "total_amount": q.total_amount,
+                "items": items,
+                "file_path": q.file_path,
+                "status": q.status,
+                "created_at": q.created_at.isoformat() if q.created_at else None,
+            })
+        return {"id": project_id, "quotations": out}

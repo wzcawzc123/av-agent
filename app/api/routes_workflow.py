@@ -37,10 +37,15 @@ async def create_workflow_run(body: WorkflowRunIn):
         s.add(run)
         s.flush()
         run_id = run.id
-    deliverables = body.deliverables or ["excel"]
+    # B10：统一默认继承需求槽位，缺省 doc+excel
+    deliverable_hint = slots.get("deliverables") or ["doc", "excel"]
+    if isinstance(deliverable_hint, list) and deliverable_hint:
+        deliverable_hint = [d for d in deliverable_hint if d]
+    deliverables = body.deliverables or deliverable_hint
     cfg = {
         "deliverables": deliverables,
         "project_dir": f"{settings.OUTPUT_DIR}/proj_{body.project_id}",
+        "project_id": body.project_id,
         "run_id": run_id,
     }
     task_id = submit_task(body.project_id, cfg, slots)
@@ -48,9 +53,12 @@ async def create_workflow_run(body: WorkflowRunIn):
 
 
 @router.get("/workflow/runs")
-def list_workflow_runs():
+def list_workflow_runs(project_id: int | None = None):
     with get_session() as s:
-        rows = s.query(WorkflowRun).order_by(WorkflowRun.id.desc()).limit(100).all()
+        q = s.query(WorkflowRun)
+        if project_id:
+            q = q.filter_by(project_id=project_id)
+        rows = q.order_by(WorkflowRun.id.desc()).limit(100).all()
         return [{"id": r.id, "project_id": r.project_id, "status": r.status,
                  "progress": r.progress, "error": r.error,
                  "created_at": r.created_at.isoformat() if r.created_at else None,

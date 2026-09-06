@@ -19,6 +19,15 @@ async def lifespan(app: FastAPI):
     engine = get_engine()
     Base.metadata.create_all(engine)
     ensure_schema(engine)
+    # E1/A9：重启后把遗留的 running/pending 后台任务标记为 failed
+    try:
+        from app.tasks.queue import recover_stale_tasks
+
+        n = recover_stale_tasks(engine)
+        if n:
+            print(f"[tasks] 标记 {n} 条中断任务为 failed")
+    except Exception:
+        pass
     from app.db.session import get_session
     from app.db.system_seed import seed_system_catalog
     from app.db.tagger import tag_product

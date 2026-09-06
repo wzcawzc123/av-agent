@@ -124,13 +124,15 @@ async def upload_template(file: UploadFile = File(...),
                           brand: str = Form(""),
                           systems: str = Form("[]"),
                           description: str = Form("")):
-    """上传 doc/ppt 模板文件：存 UPLOAD_DIR/templates，按 场景×品牌 参与自动选型。"""
+    """上传 doc/ppt/deviation 模板文件：存 UPLOAD_DIR/templates，按 场景×品牌 参与自动选型。"""
     from app.config import settings
-    if type not in ("doc", "ppt"):
-        raise HTTPException(status_code=400, detail="仅支持 doc/ppt 模板上传")
+    if type not in ("doc", "ppt", "deviation"):
+        raise HTTPException(status_code=400, detail="仅支持 doc/ppt/deviation 模板上传")
     ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in (".docx", ".doc", ".pptx", ".ppt"):
-        raise HTTPException(status_code=400, detail="仅支持 .docx/.doc/.pptx/.ppt 文件")
+    allowed = {".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls"} if type == "deviation"         else ({".docx", ".doc"} if type == "doc" else {".pptx", ".ppt"})
+    if ext not in allowed:
+        raise HTTPException(status_code=400,
+                            detail="仅支持 " + "/".join(sorted(allowed)) + " 文件")
     tdir = os.path.join(settings.UPLOAD_DIR, "templates")
     os.makedirs(tdir, exist_ok=True)
     base = "".join(ch for ch in (name or "模板") if ch not in '\\/:*?"<>|').strip() or "模板"

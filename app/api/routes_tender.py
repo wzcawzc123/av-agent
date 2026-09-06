@@ -1,8 +1,14 @@
-"""招标改单 API：上传解析 → 匹配 → 精修 → 快照 → 确认转 BOM。"""
+"""招标改单 API：上传解析 → 匹配 → 精修 → 快照 → 确认转 BOM。
+
+- project_id 可来自聊天/项目页联动；为 0/不存在时自动创建独立招标项目（避免多项目串号）；
+- 确认改单时写 Project.bom_json 并生成设计方案 Excel，前端可直接下载。
+"""
 from __future__ import annotations
 
+import json
 import os
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -11,7 +17,7 @@ from sqlalchemy import func
 from app.api.deps import require_token
 from app.config import settings
 from app.db.session import get_session
-from app.db.models import TenderMatch
+from app.db.models import Project, TenderMatch
 from app.engines.tender.parser import parse_file
 from app.engines.tender.matcher import match_items
 from app.engines.tender.coverage import detect_merge
@@ -32,6 +38,19 @@ class RowEditIn(BaseModel):
 class ConfirmIn(BaseModel):
     project_id: int
     snapshot: str = ""
+
+
+def _ensure_project(session, project_id: int, name: str = "") -> int:
+    """确保项目存在：id<=0 或查无此项目时新建，返回真实 project_id。"""
+    p = None
+    if project_id:
+        p = session.get(Project, project_id)
+    if p is None:
+        p = Project(name=name or f"招标改单 {date.today().isoformat()}",
+                    requirement_json="{}", status="IDLE")
+        session.add(p)
+        session.flush()
+    return p.id
 
 
 @router.post("/upload")
@@ -61,15 +80,16 @@ def upload_tender(
         raise HTTPException(status_code=400, detail="未从文件中识别到设备需求行")
 
     with get_session() as s:
+        pid = _ensure_project(s, project_id, name=f"招标改单-{file.filename}")
         rows = match_items(s, items)
         n = detect_merge(rows, s)
         refine_rows(rows, llm_enabled=True)
         flag_extras(rows, llm_enabled=True)
-        snapshot = save_snapshot(s, project_id, rows)
+        snapshot = save_snapshot(s, pid, rows)
         s.commit()
         return {
             "ok": True,
-            "project_id": project_id,
+            "project_id": pid,
             "snapshot": snapshot,
             "items": [r.to_dict() for r in rows],
             "merged": n,
@@ -133,10 +153,37 @@ def edit_row(project_id: int, source_idx: int, body: RowEditIn):
 
 @router.post("/{project_id}/confirm")
 def confirm_tender(project_id: int, body: ConfirmIn):
-    """确认改单，生成 BOM 行。"""
+    """确认改单：转 BOM → 写 Project.bom_json → 生成设计方案 Excel。"""
+    from app.generators.excel_generator import build_design_sheet
+
     with get_session() as s:
         rows = load_rows(s, project_id, body.snapshot)
         if not rows:
             raise HTTPException(status_code=404, detail="未找到匹配行")
         bom = to_bom_rows(rows)
-        return {"ok": True, "project_id": project_id, "rows": bom}
+        # 统一 BOM 行格式：price -> 生成器 market_price（与 rebuild 端点一致）
+        for r in bom:
+            r.setdefault("qty", 1)
+            r.setdefault("unit", "台")
+            r.setdefault("note", "")
+            r["market_price"] = float(r.get("price") or 0)
+            r["base_price"] = 0.0
+        p = s.get(Project, project_id)
+        if p is None:
+            raise HTTPException(status_code=404, detail="项目不存在")
+        p.bom_json = json.dumps(bom, ensure_ascii=False)
+        try:
+            req = json.loads(p.requirement_json or "{}")
+        except Exception:
+            req = {}
+        scene = req.get("scene") or p.name
+        project_dir = os.path.join(settings.OUTPUT_DIR, f"proj_{project_id}")
+    os.makedirs(project_dir, exist_ok=True)
+    out = os.path.join(project_dir, "设计方案清单_v2.xlsx")
+    build_design_sheet(out, {"项目名称": scene, "方案日期": date.today().isoformat()}, bom)
+    return {
+        "ok": True,
+        "project_id": project_id,
+        "rows": bom,
+        "files": {"excel": out},
+    }

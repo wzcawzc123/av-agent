@@ -147,14 +147,21 @@ async def _publish_redis(project_id: int, event: dict) -> None:
         pass
 
 
-def _notify(project_id: int, event: dict):
+_main_loop = None  # 任务协程所在事件循环（跨线程发布 Redis 用）
+
+
+def _notify(project_id: int, event: dict, task_id: str | None = None):
+    if task_id:
+        event = {**event, "task_id": task_id}
     for q in _watchers.get(project_id, []):
         q.put_nowait(event)
     if _redis_url():
         try:
             asyncio.get_running_loop().create_task(_publish_redis(project_id, event))
         except RuntimeError:
-            pass
+            # 非事件循环线程（如 def 路由线程池）：转发到主循环，避免事件静默丢失
+            if _main_loop is not None and _main_loop.is_running():
+                asyncio.run_coroutine_threadsafe(_publish_redis(project_id, event), _main_loop)
 
 
 async def subscribe(project_id: int):
@@ -206,9 +213,12 @@ async def _run(t: Task):
         cfg = load_model_config()
         provider = await get_provider(cfg)
 
+        global _main_loop
+        _main_loop = asyncio.get_running_loop()
+
         def cb(p, m):
             t.progress, t.message = p, m
-            _notify(t.project_id, {"type": "progress", "percent": p, "message": m})
+            _notify(t.project_id, {"type": "progress", "percent": p, "message": m}, task_id=t.id)
 
         with get_session() as s:
             plan = Planner.create_plan(t.slots, t.cfg.get("deliverables", ["excel"]))
@@ -231,7 +241,7 @@ async def _run(t: Task):
         _mark_run_failed(t)
     _persist_record(t, finished=True)
     _notify(t.project_id, {"type": "done", "status": t.status,
-                           "error": t.error, "result": t.result})
+                           "error": t.error, "result": t.result}, task_id=t.id)
 
 
 def _mark_run_failed(t: Task):

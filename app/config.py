@@ -15,6 +15,28 @@ def _base_dir() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _load_or_create_token() -> str:
+    """访问口令：环境变量优先；否则读/建 data/access_token.txt，保证重启不变。"""
+    env = os.environ.get("AV_ACCESS_TOKEN")
+    if env:
+        return env
+    token_file = os.path.join(_base_dir(), "data", "access_token.txt")
+    try:
+        if os.path.exists(token_file):
+            with open(token_file, encoding="utf-8") as f:
+                token = f.read().strip()
+            if token:
+                return token
+        token = secrets.token_urlsafe(16)
+        os.makedirs(os.path.dirname(token_file), exist_ok=True)
+        fd = os.open(token_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(token)
+        return token
+    except OSError:
+        return secrets.token_urlsafe(16)
+
+
 def _static_dir(base_dir: str) -> str:
     """静态资源：exe 模式下解压在 _MEIPASS 临时目录，源码模式下为 base_dir/static。"""
     if _is_frozen():
@@ -27,9 +49,7 @@ class Settings:
     base_dir: str = field(default_factory=_base_dir)
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    ACCESS_TOKEN: str = field(
-        default_factory=lambda: os.environ.get("AV_ACCESS_TOKEN", secrets.token_urlsafe(16))
-    )
+    ACCESS_TOKEN: str = field(default_factory=lambda: _load_or_create_token())
     DATABASE_URL: str | None = field(
         default_factory=lambda: os.environ.get("AV_DATABASE_URL")
     )

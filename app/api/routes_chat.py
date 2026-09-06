@@ -15,6 +15,13 @@ from app.db.models import ChatMessage, Project
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
 _sessions: dict[int, dict] = {}
+_MAX_SESSIONS = 200  # 内存会话上限：超出淘汰最旧一半（槽位 DB 有兜底，可无损重建）
+
+
+def _evict_sessions_if_needed():
+    if len(_sessions) > _MAX_SESSIONS:
+        for pid in list(_sessions.keys())[: _MAX_SESSIONS // 2]:
+            _sessions.pop(pid, None)
 
 
 class ChatIn(BaseModel):
@@ -57,6 +64,7 @@ def _load_or_create_session(pid: int) -> tuple[int, dict]:
         valid = ("IDLE", "COLLECTING", "CONFIRMING", "GENERATING", "DELIVERED")
         st = ConversationState(p.status if p.status in valid else "IDLE")
         sess = {"state": st, "slots": slots}
+        _evict_sessions_if_needed()
         _sessions[pid] = sess
         return pid, sess
 
@@ -94,7 +102,9 @@ async def chat(body: ChatIn):
 
     intent = detect_engine_intent(body.text) if not should_use_generic_flow(body.text) else None
     if intent:
-        result = run_engine(intent["engine"], intent["params"])
+        from fastapi.concurrency import run_in_threadpool
+
+        result = await run_in_threadpool(run_engine, intent["engine"], intent["params"])
         reply = {
             "reply": engine_summary(intent["engine"], result),
             "project_id": pid,
@@ -117,7 +127,18 @@ async def chat(body: ChatIn):
         return reply
     provider = await _get_provider(cfg)
     try:
-        new_slots = await parse_intent(provider, body.text, known=slots)
+        # 知识库检索：注入相关文档片段辅助意图解析
+        context_docs = []
+        if body.text:
+            try:
+                from app.db.session import get_session
+                from app.knowledge.retriever import retrieve
+                with get_session() as _ks:
+                    context_docs = retrieve(_ks, body.text, top_k=3)
+            except Exception:
+                pass
+        new_slots = await parse_intent(provider, body.text, known=slots,
+                                       context_docs=context_docs or None)
     except Exception:
         reply = {
             "reply": "调用模型失败，请检查 API Key 与网络后重试；也可以在工具箱中直接使用会议/广播/LED/偏离表引擎。",

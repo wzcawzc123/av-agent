@@ -195,6 +195,7 @@
     const es = new EventSource(`/api/tasks/${task_id}/stream`);
     es.onmessage = (ev) => {
       const event = JSON.parse(ev.data);
+      if (event.task_id && event.task_id !== currentTaskId) return;  // 同项目其他任务的事件忽略
       if (event.type === "progress") {
         progressFill.style.width = `${event.percent}%`;
         progressText.textContent = `${event.percent}% ${event.message}`;

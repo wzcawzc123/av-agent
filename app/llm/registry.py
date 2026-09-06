@@ -28,15 +28,24 @@ def _path():
 
 
 def save_model_config(cfg: dict):
+    from app.security.crypto import encrypt_secret
+
+    stored = dict(cfg)
+    stored["api_key"] = encrypt_secret(stored.get("api_key", ""))
     with open(_path(), "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+        json.dump(stored, f, ensure_ascii=False, indent=2)
 
 
 def load_model_config() -> dict:
     if not os.path.exists(_path()):
         return {}
+    from app.security.crypto import decrypt_secret
+
     with open(_path(), "r", encoding="utf-8") as f:
-        return json.load(f)
+        cfg = json.load(f)
+    if isinstance(cfg, dict) and cfg.get("api_key"):
+        cfg["api_key"] = decrypt_secret(cfg["api_key"])
+    return cfg
 
 
 def all_providers() -> list[provider_store.ProviderSetting]:

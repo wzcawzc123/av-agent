@@ -11,6 +11,12 @@ def verify_token(token: str, expected: str) -> bool:
 
 def _is_local_request(request: Request) -> bool:
     """本机访问（127.0.0.1 / ::1 / localhost）免口令，防止用户自己反被口令锁死。"""
+    # 经反向代理转发时 client.host 恒为 127.0.0.1，不能作为本机依据
+    try:
+        if request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip"):
+            return False
+    except Exception:
+        pass  # 非标准 ASGI scope（如无 headers 键）按无代理处理
     host = (request.client.host if request.client else "") or ""
     return host in ("127.0.0.1", "::1", "localhost")
 

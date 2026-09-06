@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
@@ -132,7 +133,7 @@ def engine_deviation(body: EngineDeviationIn):
     results = match_tender_to_product(body.tender_items, cands)
     results = enhance_with_llm(results, body.tender_items, llm_enabled=body.llm_enabled)
     os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
-    out = f"{settings.OUTPUT_DIR}/engines/deviation.xlsx"
+    out = f"{settings.OUTPUT_DIR}/engines/deviation_{uuid.uuid4().hex[:8]}.xlsx"
     rows = [{"device": r.model, "tender_param": t, "bid_param": r.matched_param,
              "deviation": "" if r.confidence != "low" else "待人工确认",
              "note": r.confidence}
@@ -168,7 +169,7 @@ def engine_meeting(body: EngineMeetingIn):
     with get_session(get_engine()) as s:
         seed_selection_rules(s)
         rows = select_devices(s, parse_code(code))
-    out = f"{settings.OUTPUT_DIR}/engines/meeting.xlsx"
+    out = f"{settings.OUTPUT_DIR}/engines/meeting_{uuid.uuid4().hex[:8]}.xlsx"
     build_meeting_list(out, body.header, rows)
     return {"file": out, "rows": rows, "code": code}
 
@@ -199,7 +200,7 @@ def engine_broadcast(body: EngineBroadcastIn):
     rows = [{"name": model, "model": model, "qty": qty, "unit": "只"}
             for z in body.zones for model, qty in z.items()
             if model not in ("zone", "power_w", "amplifier")]
-    out = f"{settings.OUTPUT_DIR}/engines/broadcast.xlsx"
+    out = f"{settings.OUTPUT_DIR}/engines/broadcast_{uuid.uuid4().hex[:8]}.xlsx"
     build_broadcast_list(out, body.header, zones_with_power, rows)
     return {"file": out, "zones_with_power": zones_with_power, "rows": rows}
 
@@ -224,6 +225,6 @@ def engine_led(body: EngineLedIn):
     layout = calc_layout(body.want_w_m, body.want_h_m, panel, body.round_mode)
     rows = [{"name": f"{body.model}模组", "model": body.model,
              "qty": layout["count_w"] * layout["count_h"], "unit": "块"}]
-    out = f"{settings.OUTPUT_DIR}/engines/led.xlsx"
+    out = f"{settings.OUTPUT_DIR}/engines/led_{uuid.uuid4().hex[:8]}.xlsx"
     build_led_list(out, body.header, layout, rows)
     return {"file": out, "layout": layout, "rows": rows}

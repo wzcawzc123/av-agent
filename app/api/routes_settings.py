@@ -25,13 +25,22 @@ class ModelConfigIn(BaseModel):
 
 @router.get("/settings/model")
 def get_model_config():
-    return load_model_config()
+    from app.llm.provider_store import mask_api_key
+
+    cfg = load_model_config()
+    if cfg.get("api_key"):
+        cfg = dict(cfg)
+        cfg["api_key"] = mask_api_key(cfg["api_key"])
+        cfg["has_api_key"] = True
+    return cfg
 
 
 @router.put("/settings/model")
 async def put_model_config(body: ModelConfigIn):
     resolved = resolve_credentials(body.model_dump())
-    cfg = {"provider": resolved["provider"], "api_key": body.api_key or resolved["api_key"],
+    # 前端回填的掩码值（含 ******）视为未修改，保留原 key
+    submitted_key = "" if "******" in (body.api_key or "") else body.api_key
+    cfg = {"provider": resolved["provider"], "api_key": submitted_key or resolved["api_key"],
            "model": body.model or resolved["model"], "base_url": body.base_url or resolved["base_url"]}
     # 同步 api_key / base_url 到该提供商记录
     provider_store.update_provider(resolved["provider"], api_key=cfg["api_key"], base_url=cfg["base_url"])

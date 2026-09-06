@@ -66,7 +66,10 @@ def upload_tender(
     tmp_name = f"{uuid.uuid4().hex}{ext}"
     tmp_path = os.path.join(settings.UPLOAD_DIR, tmp_name)
     with open(tmp_path, "wb") as f:
-        f.write(file.file.read())
+        content = file.file.read()
+        if len(content) > 20 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="文件过大（上限 20MB）")
+        f.write(content)
 
     try:
         items = parse_file(tmp_path)
@@ -179,7 +182,7 @@ def confirm_tender(project_id: int, body: ConfirmIn):
         scene = req.get("scene") or p.name
         project_dir = os.path.join(settings.OUTPUT_DIR, f"proj_{project_id}")
     os.makedirs(project_dir, exist_ok=True)
-    out = os.path.join(project_dir, "设计方案清单_v2.xlsx")
+    out = os.path.join(project_dir, "设计方案清单.xlsx")
     build_design_sheet(out, {"项目名称": scene, "方案日期": date.today().isoformat()}, bom)
     return {
         "ok": True,

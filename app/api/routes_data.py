@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import or_
@@ -10,6 +11,8 @@ from app.api.deps import require_token
 from app.db.session import get_session
 from app.db.models import Product, Template, ConfigTemplate
 from app.db.product_importer import import_products
+
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 上传统一上限 20MB
 from app.db.template_store import save_template, save_config_template, find_doc_template
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_token)])
@@ -69,9 +72,18 @@ async def upload_products(file: UploadFile = File(...)):
     from app.config import settings
 
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    dest = os.path.join(settings.UPLOAD_DIR, file.filename or "products.xlsx")
+    # 安全：客户端文件名只做展示，落盘固定名（防路径遍历），历史文件保留
+    dest = os.path.join(settings.UPLOAD_DIR,
+                        f"products_{uuid.uuid4().hex[:8]}{os.path.splitext(file.filename or '')[1].lower() or '.xlsx'}")
+    size = 0
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        while chunk := file.file.read(1024 * 1024):
+            size += len(chunk)
+            if size > MAX_UPLOAD_BYTES:
+                f.close()
+                os.remove(dest)
+                raise HTTPException(status_code=413, detail="文件过大（上限 20MB）")
+            f.write(chunk)
     with get_session() as s:
         result = import_products(dest, s)
     return result
@@ -141,8 +153,15 @@ async def upload_template(file: UploadFile = File(...),
     while os.path.exists(dest):
         dest = os.path.join(tdir, f"{base}_{n}{ext}")
         n += 1
+    size = 0
     with open(dest, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        while chunk := file.file.read(1024 * 1024):
+            size += len(chunk)
+            if size > MAX_UPLOAD_BYTES:
+                f.close()
+                os.remove(dest)
+                raise HTTPException(status_code=413, detail="文件过大（上限 20MB）")
+            f.write(chunk)
     try:
         systems_list = json.loads(systems or "[]")
         if not isinstance(systems_list, list):

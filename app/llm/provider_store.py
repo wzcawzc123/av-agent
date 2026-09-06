@@ -314,12 +314,14 @@ def _model_from_dict(d: dict) -> Model:
 
 
 def _provider_from_dict(d: dict) -> ProviderSetting:
+    from app.security.crypto import decrypt_secret
+
     return ProviderSetting(
         id=d.get("id", ""),
         name=d.get("name", ""),
         base_url=d.get("base_url", ""),
         source_type=d.get("source_type", SOURCE_CUSTOM),
-        api_key=d.get("api_key", ""),
+        api_key=decrypt_secret(d.get("api_key", "")),
         is_enabled=bool(d.get("is_enabled", True)),
         is_built_in=bool(d.get("is_built_in", False)),
         sort_order=int(d.get("sort_order", 0)),
@@ -343,9 +345,16 @@ def load_all() -> list[ProviderSetting]:
 
 
 def save_all(providers: list[ProviderSetting]):
+    from app.security.crypto import encrypt_secret
+
     os.makedirs(os.path.dirname(_store_path()), exist_ok=True)
+    stored = []
+    for p in providers:
+        d = p.to_dict()
+        d["api_key"] = encrypt_secret(p.api_key)  # 落盘加密
+        stored.append(d)
     with open(_store_path(), "w", encoding="utf-8") as f:
-        json.dump({"providers": [p.to_dict() for p in providers]}, f, ensure_ascii=False, indent=2)
+        json.dump({"providers": stored}, f, ensure_ascii=False, indent=2)
 
 
 def ensure_builtins_merged() -> list[ProviderSetting]:

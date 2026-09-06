@@ -28,7 +28,7 @@ def test_chat_triggers_meeting_without_model(client):
     data = r.json()
     assert data.get("engine") == "meeting"
     assert "会议设备清单" in data["reply"]
-    assert data["files"][0].endswith("meeting.xlsx")
+    assert "meeting_" in data["files"][0] and data["files"][0].endswith(".xlsx")
 
 
 def test_chat_triggers_broadcast(client):

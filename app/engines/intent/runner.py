@@ -1,5 +1,6 @@
 """引擎执行 runner：chat 与 /api/engines/* 端点共用，输出到 OUTPUT_DIR/engines/。"""
 import os
+import uuid
 
 from app.config import settings
 from app.db.session import get_engine, get_session
@@ -18,7 +19,7 @@ def run_meeting(params: dict) -> dict:
     from app.engines.meeting.selector import select_devices
     from app.generators.excel_generator import build_meeting_list
 
-    out = f"{_out_dir()}/meeting.xlsx"
+    out = f"{_out_dir()}/meeting_{uuid.uuid4().hex[:8]}.xlsx"
     with get_session(get_engine()) as s:
         seed_selection_rules(s)
         rows = select_devices(s, parse_code(params.get("code", "")))
@@ -32,7 +33,7 @@ def run_broadcast(params: dict) -> dict:
     from app.engines.broadcast.rules import seed_amplifier_tiers, seed_speaker_specs
     from app.generators.excel_generator import build_broadcast_list
 
-    out = f"{_out_dir()}/broadcast.xlsx"
+    out = f"{_out_dir()}/broadcast_{uuid.uuid4().hex[:8]}.xlsx"
     with get_session(get_engine()) as s:
         seed_speaker_specs(s)
         seed_amplifier_tiers(s)
@@ -61,7 +62,7 @@ def run_led(params: dict) -> dict:
     from app.engines.led.rules import seed_led_specs
     from app.generators.excel_generator import build_led_list
 
-    out = f"{_out_dir()}/led.xlsx"
+    out = f"{_out_dir()}/led_{uuid.uuid4().hex[:8]}.xlsx"
     with get_session(get_engine()) as s:
         seed_led_specs(s)
         panel = s.query(LedPanelSpec).filter_by(model=params.get("model", "")).first()
@@ -81,7 +82,7 @@ def run_deviation(params: dict) -> dict:
     from app.engines.deviation.matcher import match_tender_to_product
     from app.generators.excel_generator import build_deviation_sheet
 
-    out = f"{_out_dir()}/deviation.xlsx"
+    out = f"{_out_dir()}/deviation_{uuid.uuid4().hex[:8]}.xlsx"
     with get_session(get_engine()) as s:
         cands = build_candidates_from_db(s, params.get("models", []))
     results = match_tender_to_product(params.get("tender_items", []), cands)
@@ -95,12 +96,43 @@ def run_deviation(params: dict) -> dict:
     return {"file": out, "results": [vars(r) for r in results], "low_confidence": low}
 
 
-_RUNNERS = {"meeting": run_meeting, "broadcast": run_broadcast,
-            "led": run_led, "deviation": run_deviation}
+def _summary_meeting(result: dict) -> str:
+    lines = [f"{r['seq']}. {r['name']} {r['model']} ×{r['qty']}{r['unit']}"
+             for r in result["rows"]]
+    return "会议设备清单（Excel 已生成）：\n" + "\n".join(lines)
+
+
+def _summary_broadcast(result: dict) -> str:
+    lines = [f"{z['zone']}：{z['power_w']}W → 功放 {z['amplifier']}"
+             for z in result["zones_with_power"]]
+    return "广播分区计算（×1.5 余量）：\n" + "\n".join(lines)
+
+
+def _summary_led(result: dict) -> str:
+    l = result["layout"]
+    return (f"LED 排布：{l['count_w']}×{l['count_h']} 块 → 实际 "
+            f"{l['actual_w_m']}m × {l['actual_h_m']}m，分辨率 {l['res_w']}×{l['res_h']}，"
+            f"功耗 {l['power_kw']}kW，电缆 {l['cable_mm2']}mm²")
+
+
+def _summary_deviation(result: dict) -> str:
+    low = result.get("low_confidence", 0)
+    return (f"偏离表已生成：{len(result['results'])} 条，低置信度 {low} 条"
+            + ("（已标「待人工确认」）" if low else ""))
+
+
+from app.engines import register_engine  # noqa: E402
+
+register_engine("meeting", run_meeting, _summary_meeting)
+register_engine("broadcast", run_broadcast, _summary_broadcast)
+register_engine("led", run_led, _summary_led)
+register_engine("deviation", run_deviation, _summary_deviation)
 
 
 def run_engine(engine: str, params: dict) -> dict:
-    fn = _RUNNERS.get(engine)
+    from app.engines import get_runner
+
+    fn = get_runner(engine)
     if not fn:
         raise ValueError(f"未知引擎: {engine}")
     return fn(params)
@@ -108,21 +140,7 @@ def run_engine(engine: str, params: dict) -> dict:
 
 def engine_summary(engine: str, result: dict) -> str:
     """执行结果 → 对话回复摘要。"""
-    if engine == "meeting":
-        lines = [f"{r['seq']}. {r['name']} {r['model']} ×{r['qty']}{r['unit']}"
-                 for r in result["rows"]]
-        return "会议设备清单（Excel 已生成）：\n" + "\n".join(lines)
-    if engine == "broadcast":
-        lines = [f"{z['zone']}：{z['power_w']}W → 功放 {z['amplifier']}"
-                 for z in result["zones_with_power"]]
-        return "广播分区计算（×1.5 余量）：\n" + "\n".join(lines)
-    if engine == "led":
-        l = result["layout"]
-        return (f"LED 排布：{l['count_w']}×{l['count_h']} 块 → 实际 "
-                f"{l['actual_w_m']}m × {l['actual_h_m']}m，分辨率 {l['res_w']}×{l['res_h']}，"
-                f"功耗 {l['power_kw']}kW，电缆 {l['cable_mm2']}mm²")
-    if engine == "deviation":
-        low = result.get("low_confidence", 0)
-        return (f"偏离表已生成：{len(result['results'])} 条，低置信度 {low} 条"
-                + ("（已标「待人工确认」）" if low else ""))
-    return "已生成"
+    from app.engines import get_summarizer
+
+    fn = get_summarizer(engine)
+    return fn(result) if fn else "已生成"

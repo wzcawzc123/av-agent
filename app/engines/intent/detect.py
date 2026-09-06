@@ -44,17 +44,25 @@ def _meeting_code(text: str) -> str | None:
     return f"{side}-{side}-{max(3, side // 2)}-0-0-{scene}-2-"
 
 
+_BROADCAST_PREFIX = ("广播系统", "广播", "分区")
+
+
 def _broadcast_zones(text: str) -> list[dict]:
+    """解析分区：分区名 + 「数量只型号」列表。zone 名 = 首个「数字+型号」之前的文本，
+    并剥离"广播系统"等前缀关键词，兼容 "1F大厅" 这类数字开头分区名。"""
     zones = []
-    # 优先：分区名 数量只型号 … 例如 "1F大厅 24只T-601 12只T-105"
     seg = re.split(r"[，。;；]", text)
     for chunk in seg:
-        m = re.match(r"\s*([^\d\s,，;；]+(?:[层厅区号]|F|楼)?)\s+(.+)", chunk)
+        m = re.search(r"(\d+)\s*只?\s*(?=[A-Za-z][A-Za-z0-9\-])", chunk)  # 第一个 数量+型号（型号≥2字符，排除 1F 类楼层前缀）
         if not m:
             continue
-        zone = {"zone": m.group(1)}
-        rest = m.group(2)
-        items = re.findall(r"(\d+)\s*只?\s*([A-Za-z][A-Za-z0-9\-]*)", rest)
+        name = chunk[:m.start()].strip(" \u3000，,。;；")
+        for kw in _BROADCAST_PREFIX:
+            if name.startswith(kw):
+                name = name[len(kw):].strip()
+        rest = chunk[m.start():]
+        items = re.findall(r"(\d+)\s*只?\s*([A-Za-z][A-Za-z0-9\-]+)", rest)
+        zone = {"zone": name or "分区"}
         for qty, model in items:
             zone[model] = int(qty)
         if len(zone) > 1:

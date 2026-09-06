@@ -32,8 +32,14 @@ def extract_json(text: str) -> dict:
     raise ValueError(f"JSON 解析失败: {candidate[:200]}")
 
 
-async def parse_intent(provider, user_text: str, known: dict | None = None) -> dict:
+async def parse_intent(provider, user_text: str, known: dict | None = None,
+                       context_docs: list[dict] | None = None) -> dict:
     ctx = f"【已确认信息】{known}\n" if known else ""
+    if context_docs:
+        refs = "\n".join(
+            f"- {d['title']}：{(d.get('excerpt') or '')[:150]}" for d in context_docs[:3]
+        )
+        ctx = f"【参考文档】\n{refs}\n{ctx}"
     resp = await provider.chat(
         [
             ChatMessage("system", INTENT_PROMPT),

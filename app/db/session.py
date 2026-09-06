@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 _engines: dict[str, object] = {}
+_sessionmakers: dict[int, object] = {}
 
 
 def get_engine(url: str | None = None):
@@ -23,7 +24,11 @@ def get_engine(url: str | None = None):
 @contextmanager
 def get_session(engine=None):
     engine = engine or get_engine()
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    key = id(engine)
+    SessionLocal = _sessionmakers.get(key)
+    if SessionLocal is None:
+        SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+        _sessionmakers[key] = SessionLocal
     sess = SessionLocal()
     try:
         yield sess

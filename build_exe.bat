@@ -1,33 +1,38 @@
 @echo off
-chcp 65001 >nul
-title AV Agent 一键打包
+setlocal enabledelayedexpansion
+title AV Agent one-click build
+
 echo ==========================================
-echo   AV Agent 一键打包脚本（Windows）
+echo   AV Agent one-click build (Windows)
 echo ==========================================
 echo.
 
-echo [1/4] 安装依赖...
-pip install -r requirements.txt || goto :error
-pip install pyinstaller || goto :error
+echo [1/3] Installing dependencies...
+pip install -r requirements.txt
+if errorlevel 1 goto :error
+pip install pyinstaller
+if errorlevel 1 goto :error
 
 echo.
-echo [2/4] 开始打包（约需 3-8 分钟，PySide6 体积较大）...
-pyinstaller --clean --noconfirm av-agent.spec || goto :error
+echo [2/3] Building with PyInstaller (3-8 min, PySide6 is large)...
+pyinstaller --clean --noconfirm av-agent.spec
+if errorlevel 1 goto :error
 
 echo.
-echo [3/4] 打包完成！
+echo [3/3] Done!
 echo ------------------------------------------
-echo   输出文件：dist\AVAgent.exe
-echo   使用方法：把 AVAgent.exe 发给用户，双击运行，
-echo   弹出原生桌面窗口（对话工作台 + 产品库/模板库/
-echo   提供商/招标/知识库）；服务保持运行，手机可经
-echo   局域网访问同一实例。
+echo   Output: dist\AVAgent.exe
+echo   Usage: send AVAgent.exe to users; double-click
+echo   to open the native desktop workbench. The
+echo   FastAPI service runs in the background, so
+echo   phones can access it over LAN.
 echo ------------------------------------------
+echo.
 pause
 exit /b 0
 
 :error
 echo.
-echo 打包失败，请检查上方错误信息后重试。
+echo Build failed. Check the error messages above.
 pause
 exit /b 1

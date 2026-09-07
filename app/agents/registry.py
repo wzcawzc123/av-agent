@@ -21,10 +21,10 @@ def list_agents() -> list[str]:
 
 # 具体 Agent 模块导入即自动注册（依赖其底部 register 调用）
 from app.agents import (  # noqa: E402
-    bom_generation,
-    document_generation,
-    product_selection,
-    quotation,
-    requirement_analysis,
-    solution_design,
+    bom_generation,  # noqa: F401
+    document_generation,  # noqa: F401
+    product_selection,  # noqa: F401
+    quotation,  # noqa: F401
+    requirement_analysis,  # noqa: F401
+    solution_design,  # noqa: F401
 )

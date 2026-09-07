@@ -2,7 +2,7 @@ import os
 
 from app.engines.composer import compose_devices
 from app.generators.word_generator import build_doc_from_llm
-from app.generators.excel_generator import generate_deviation_sheet, build_design_sheet
+from app.generators.excel_generator import generate_deviation_sheet, build_design_sheet, build_deviation_sheet
 from app.generators.ppt_generator import build_ppt
 from app.generators.pdf_converter import convert_docx_to_pdf
 from app.db.template_store import find_config_template, find_doc_template

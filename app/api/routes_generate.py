@@ -34,8 +34,8 @@ async def generate(body: GenerateIn):
                     slots = json.loads(p.requirement_json or "{}")
                 except Exception:
                     slots = {}
-    from app.orchestrator.clarify import next_question
-    q = next_question(slots)
+    from app.orchestrator.clarify import missing_required
+    q = missing_required(slots)
     if q:
         raise HTTPException(status_code=422, detail=f"需求未完整，请先补充：{q}")
     # B10：默认交付物继承需求槽位，缺省 doc+excel
@@ -180,7 +180,7 @@ def engine_broadcast(body: EngineBroadcastIn):
     from app.db.models import AmplifierTier, SpeakerSpec
     from app.db.session import get_engine, get_session
     from app.engines.broadcast.calculator import compute_zone_power, select_amplifier
-    from app.engines.broadcast.rules import _SPEAKER_NAMES, seed_amplifier_tiers, seed_speaker_specs
+    from app.engines.broadcast.rules import seed_amplifier_tiers, seed_speaker_specs
     from app.generators.excel_generator import build_broadcast_list
 
     os.makedirs(f"{settings.OUTPUT_DIR}/engines", exist_ok=True)
@@ -203,6 +203,23 @@ def engine_broadcast(body: EngineBroadcastIn):
     out = f"{settings.OUTPUT_DIR}/engines/broadcast_{uuid.uuid4().hex[:8]}.xlsx"
     build_broadcast_list(out, body.header, zones_with_power, rows)
     return {"file": out, "zones_with_power": zones_with_power, "rows": rows}
+
+
+@router.get("/engines/led/specs")
+def list_led_specs():
+    """列出可选 LED 屏体/模组型号（含点距语义）。"""
+    from app.db.models import LedPanelSpec
+    from app.db.session import get_engine, get_session
+    from app.engines.led.rules import seed_led_specs
+
+    with get_session(get_engine()) as s:
+        seed_led_specs(s)
+        rows = s.query(LedPanelSpec).order_by(LedPanelSpec.module_w_mm).all()
+        return {"models": [
+            {"model": m.model, "type": m.type,
+             "module": f"{m.module_w_mm}×{m.module_h_mm}mm", "res": f"{m.res_w}×{m.res_h}"}
+            for m in rows
+        ]}
 
 
 @router.post("/engines/led")

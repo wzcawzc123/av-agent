@@ -18,7 +18,8 @@ def _auth():
 
 def test_generate_rejected_when_requirement_incomplete(client, monkeypatch):
     """需求未完整（槽位为空）时，/api/generate 应拒绝，防止绕过聊天流程浪费 token。"""
-    monkeypatch.setattr("app.api.routes_generate.get_session_slots", lambda pid: {})
+    monkeypatch.setattr("app.api.routes_generate.get_session_slots",
+                        lambda pid: {"area": None, "scene": None})
     r = client.post("/api/generate", json={"project_id": 1}, headers=_auth())
     assert r.status_code == 422
     assert "需求未完整" in r.json()["detail"]

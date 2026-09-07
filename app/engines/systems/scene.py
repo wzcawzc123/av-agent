@@ -1,11 +1,41 @@
 """系统场景推断与公共计算。
 
-scene -> systems 的默认映射；席位/信号源/显示端的面积推导规则。
+scene -> systems 的默认映射；席位/信号源/显示端/层高的推导规则。
 所有引擎输出统一角色行：
 {"system": code, "role": role_code, "role_name": 名称, "qty": n, "unit": "只",
  "spec": "", "note": ""}
 """
 import math
+
+
+def recommend_led_pitch(viewing_distance: float) -> float:
+    """按最近观看距离推荐 LED 点距（mm）。
+
+    经验速查（行业通行值）：
+    ≤3m   → P1.53 及以下（P1.25/P1.53，适合近距离会议观看文字）
+    3-6m  → P2 / P2.5
+    6-10m → P3
+    >10m  → P4 / P5（远距观看，优先性价比）
+    """
+    if viewing_distance <= 3:
+        return 1.53
+    if viewing_distance <= 6:
+        return 2.5
+    if viewing_distance <= 10:
+        return 3.0
+    return 4.0
+
+
+def estimate_viewing_distance(slots: dict) -> float:
+    """估算最近观看距离（米）：优先房间纵深 length，否则按面积 sqrt 近似。"""
+    room = slots.get("room") or {}
+    length = room.get("length")
+    if length:
+        return float(length)
+    area = float(slots.get("area") or 0)
+    if area <= 0:
+        return 4.0
+    return max(2.5, math.sqrt(area) * 1.1)
 
 
 _SYSTEM_ALIASES = {

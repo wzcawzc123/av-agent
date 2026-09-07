@@ -1,5 +1,3 @@
-from sqlalchemy import or_
-
 from app.db.models import Product, SelectionRule
 from app.engines.meeting.codec import MeetingParams
 

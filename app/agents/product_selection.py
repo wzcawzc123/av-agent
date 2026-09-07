@@ -1,5 +1,4 @@
 """产品选型 Agent：匹配常规配置模板 + 编排完整设备清单（主设备+配件辅材），写入共享 BOM 与项目记忆。"""
-import json
 
 from app.agents.base_agent import BaseAgent
 from app.agents.registry import register

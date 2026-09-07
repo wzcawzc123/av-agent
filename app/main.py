@@ -34,6 +34,15 @@ async def lifespan(app: FastAPI):
     from app.db.models import Product
     with get_session(engine) as s:
         seed_system_catalog(s)
+        # 售前专家知识库预置（幂等：已存在的标题跳过）
+        try:
+            from app.db.presales_seed import seed_presales_knowledge
+
+            n = seed_presales_knowledge(s)
+            if n:
+                print(f"[knowledge] 预置 {n} 条售前知识文档")
+        except Exception:
+            pass
         # 旧库产品补齐 system/role_tags（幂等：仅处理未打标行）
         for p in s.query(Product).filter(Product.system == "").limit(2000):
             t = tag_product(p.name, p.category, p.brand)
@@ -53,6 +62,8 @@ def health():
 
 
 from app.api.routes_chat import router as chat_router
+from app.api.routes_agent import router as agent_router
+from app.api.routes_ingest import router as ingest_router
 from app.api.routes_projects import router as projects_router
 from app.api.routes_generate import router as generate_router
 from app.api.routes_data import router as data_router
@@ -61,6 +72,8 @@ from app.api.routes_tender import router as tender_router
 from app.api.routes_workflow import router as workflow_router
 
 app.include_router(chat_router)
+app.include_router(agent_router)
+app.include_router(ingest_router)
 app.include_router(projects_router)
 app.include_router(generate_router)
 app.include_router(data_router)

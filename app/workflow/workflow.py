@@ -52,8 +52,6 @@ def _summarize(context: WorkflowContext, step_name: str) -> dict:
 class SalesWorkflow:
     @staticmethod
     async def run(context: WorkflowContext, progress_cb=None) -> dict:
-        from app.agents.registry import get_agent
-        from app.db.models import AgentExecutionLog, WorkflowRun
         from app.db.session import get_session
 
         plan = context.plan

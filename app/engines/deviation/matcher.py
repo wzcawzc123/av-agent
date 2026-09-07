@@ -1,4 +1,4 @@
-from app.engines.deviation.model import MatchResult, ProductCandidate
+from app.engines.deviation.model import MatchResult
 from app.engines.deviation.rules import DEFAULT_DEVIATION_RULES
 
 

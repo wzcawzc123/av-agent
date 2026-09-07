@@ -13,19 +13,11 @@ hiddenimports = (
     + collect_submodules("pptx")
     + collect_submodules("cryptography")
     + collect_submodules("pdfplumber")
-    # 桌面模式（PyWebView + 托盘）
-    + collect_submodules("webview")
-    + collect_submodules("pystray")
-    + collect_submodules("PIL")
-    + collect_submodules("clr_loader")
+    # 桌面模式（PySide6 原生界面）
+    + collect_submodules("desktop")
 )
 
-datas = (
-    [("static", "static")]
-    # pywebview 的 Windows 后端需要 WebView2Loader 等原生资源
-    + collect_data_files("webview")
-    + collect_data_files("clr_loader")
-)
+datas = [("static", "static"), ("desktop/assets/fonts", "desktop/assets/fonts")]
 
 a = Analysis(
     ["exe_entry.py"],

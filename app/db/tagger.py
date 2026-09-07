@@ -2,7 +2,6 @@
 
 规则数据与 system_seed 同源（DeviceRole.match_keywords），此处提供纯函数供导入器与检索共用。
 """
-import json
 
 from app.db.system_seed import _ROLES
 

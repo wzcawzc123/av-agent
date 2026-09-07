@@ -36,6 +36,11 @@ def render_summary(slots: dict, deliverable_names: dict | None = None) -> str:
     disp = slots.get("display") or {}
     if disp:
         lines.append(f"- 显示要求：{disp}")
+    for label, key in [("视频会议", "videoconf"), ("无纸化", "paperless"),
+                       ("灯光", "lighting"), ("互动", "interact"),
+                       ("分布式", "distributed")]:
+        if slots.get(key):
+            lines.append(f"- {label}：{slots[key]}")
     dels = [names.get(d, d) for d in slots.get("deliverables", [])]
     lines.append(f"- 交付物：{', '.join(dels) if dels else '未选择'}")
     return "\n".join(lines)

@@ -1,6 +1,6 @@
 import httpx
 
-from app.llm.base import LLMProvider, ChatMessage
+from app.llm.base import LLMProvider
 
 
 class AnthropicProvider(LLMProvider):

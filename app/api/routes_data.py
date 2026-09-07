@@ -1,6 +1,5 @@
 import os
 import json
-import shutil
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile

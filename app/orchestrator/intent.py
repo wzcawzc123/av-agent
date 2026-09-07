@@ -49,7 +49,8 @@ async def parse_intent(provider, user_text: str, known: dict | None = None,
     )
     slots = extract_json(resp)
     for key in ("area", "scene", "budget", "brand", "systems", "room", "seats",
-                "config_level", "display", "signal_sources"):
+                "config_level", "display", "signal_sources", "videoconf",
+                "paperless", "lighting", "interact", "distributed"):
         slots.setdefault(key, None)
     slots.setdefault("deliverables", [])
     slots.setdefault("missing", [])

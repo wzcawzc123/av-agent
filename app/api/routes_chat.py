@@ -137,6 +137,17 @@ async def chat(body: ChatIn):
                     context_docs = retrieve(_ks, body.text, top_k=3)
             except Exception:
                 pass
+        # 全局长期记忆注入（data/MEMORY.md，跨会话客户偏好）
+        try:
+            from app.api.routes_agent import _memory_read
+
+            memory_note = _memory_read(max_chars=1200)
+            if memory_note and "暂无记忆" not in memory_note:
+                context_docs = (context_docs or []) + [
+                    {"title": "跨会话记忆", "excerpt": memory_note}
+                ]
+        except Exception:
+            pass
         new_slots = await parse_intent(provider, body.text, known=slots,
                                        context_docs=context_docs or None)
     except Exception:

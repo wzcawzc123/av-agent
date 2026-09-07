@@ -1,6 +1,6 @@
 import httpx
 
-from app.llm.base import LLMProvider, ChatMessage
+from app.llm.base import LLMProvider
 
 
 class OpenAICompatProvider(LLMProvider):
@@ -27,3 +27,36 @@ class OpenAICompatProvider(LLMProvider):
             r.raise_for_status()
             data = r.json()
             return data["choices"][0]["message"]["content"]
+
+    async def chat_stream(self, messages, temperature=0.7):
+        """OpenAI 兼容流式：stream=true，逐段 yield content delta。"""
+        payload = {
+            "model": self.model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "temperature": temperature,
+            "stream": True,
+        }
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=payload,
+            ) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        import json as _json
+
+                        chunk = _json.loads(data)
+                    except Exception:
+                        continue
+                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    text = delta.get("content")
+                    if text:
+                        yield text

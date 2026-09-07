@@ -33,13 +33,17 @@ def extract_json(text: str) -> dict:
 
 
 async def parse_intent(provider, user_text: str, known: dict | None = None,
-                       context_docs: list[dict] | None = None) -> dict:
+                       context_docs: list[dict] | None = None,
+                       memory_note: str | None = None) -> dict:
     ctx = f"【已确认信息】{known}\n" if known else ""
     if context_docs:
         refs = "\n".join(
             f"- {d['title']}：{(d.get('excerpt') or '')[:150]}" for d in context_docs[:3]
         )
         ctx = f"【参考文档】\n{refs}\n{ctx}"
+    # 跨会话记忆独立注入（不占参考文档名额，不受 top-3 截断影响）
+    if memory_note:
+        ctx = f"【跨会话记忆】客户偏好与既定事实：\n{memory_note[:1200]}\n{ctx}"
     resp = await provider.chat(
         [
             ChatMessage("system", INTENT_PROMPT),

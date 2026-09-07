@@ -137,19 +137,17 @@ async def chat(body: ChatIn):
                     context_docs = retrieve(_ks, body.text, top_k=3)
             except Exception:
                 pass
-        # 全局长期记忆注入（data/MEMORY.md，跨会话客户偏好）
+        # 全局长期记忆注入（data/MEMORY.md，跨会话客户偏好；独立参数不受检索截断影响）
+        memory_note = ""
         try:
             from app.api.routes_agent import _memory_read
 
             memory_note = _memory_read(max_chars=1200)
-            if memory_note and "暂无记忆" not in memory_note:
-                context_docs = (context_docs or []) + [
-                    {"title": "跨会话记忆", "excerpt": memory_note}
-                ]
         except Exception:
             pass
         new_slots = await parse_intent(provider, body.text, known=slots,
-                                       context_docs=context_docs or None)
+                                       context_docs=context_docs or None,
+                                       memory_note=memory_note if "暂无记忆" not in memory_note else None)
     except Exception:
         reply = {
             "reply": "调用模型失败，请检查 API Key 与网络后重试；也可以在工具箱中直接使用会议/广播/LED/偏离表引擎。",

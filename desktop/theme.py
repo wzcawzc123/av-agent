@@ -1,8 +1,9 @@
-"""Material Design 3 主题：M3 色彩令牌 + QSS 生成器 + 字体/图标加载。
+"""Codex 同款 UI 主题：近黑灰阶 + ChatGPT 品牌绿点缀，沉浸式对话优先。
 
-配色采用 M3 tonal palette（主色取品牌蓝 #4665EA 系）；浅/深两套 scheme，
-按 M3 规范映射 surface / primaryContainer / outline 等角色，组件用 M3 形状
-（small 8 / medium 12 / large 16 / extra 28）。字体 Roboto，图标 Material Symbols。
+配色与结构复刻 OpenAI Codex 桌面端/ChatGPT 深色界面的视觉语言：
+背景 #0D0D0D 系灰阶层级、无彩色噪音、accent 只用 #10A37F（品牌绿）。
+浅色主题保留为次要方案（ChatGPT 浅色灰白系）。
+字体 Roboto（UI）+ 系统等宽（代码块）。图标 Material Symbols。
 """
 
 from __future__ import annotations
@@ -18,81 +19,69 @@ from PySide6.QtWidgets import QApplication
 _THEME_FILE = os.path.join(os.path.expanduser("~"), ".avagent_theme.json")
 _FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "fonts")
 
-# 当前生效主题（apply_theme 时更新，供页面按主题配色）
-_current_dark: bool = False
+_current_dark: bool = True  # Codex 风格以深色为默认
 
-# ---------- M3 色彩令牌 ----------
-
-LIGHT_SCHEME = {
-    "primary": "#4665EA",
-    "onPrimary": "#FFFFFF",
-    "primaryContainer": "#DEE0FF",
-    "onPrimaryContainer": "#00145B",
-    "secondary": "#5B5D72",
-    "onSecondary": "#FFFFFF",
-    "secondaryContainer": "#E0E1F9",
-    "onSecondaryContainer": "#171B2C",
-    "tertiary": "#77536D",
-    "onTertiary": "#FFFFFF",
-    "tertiaryContainer": "#FFD7F0",
-    "onTertiaryContainer": "#2D1228",
-    "error": "#BA1A1A",
-    "onError": "#FFFFFF",
-    "errorContainer": "#FFDAD6",
-    "onErrorContainer": "#410002",
-    "surface": "#FDF8FF",
-    "onSurface": "#1B1B1F",
-    "surfaceVariant": "#E2E1EC",
-    "onSurfaceVariant": "#45464F",
-    "surfaceContainerLowest": "#FFFFFF",
-    "surfaceContainerLow": "#F7F2FA",
-    "surfaceContainer": "#F1ECF4",
-    "surfaceContainerHigh": "#EBE6EF",
-    "surfaceContainerHighest": "#E5E0E9",
-    "outline": "#767680",
-    "outlineVariant": "#C6C5D0",
-    "scrim": "#000000",
-}
+# ---------- 色板 ----------
 
 DARK_SCHEME = {
-    "primary": "#B9C4FF",
-    "onPrimary": "#08208F",
-    "primaryContainer": "#2A47C6",
-    "onPrimaryContainer": "#DEE0FF",
-    "secondary": "#C4C5DD",
-    "onSecondary": "#2D2F43",
-    "secondaryContainer": "#43465B",
-    "onSecondaryContainer": "#E0E1F9",
-    "tertiary": "#E5BAD8",
-    "onTertiary": "#45273F",
-    "tertiaryContainer": "#5D3D56",
-    "onTertiaryContainer": "#FFD7F0",
-    "error": "#FFB4AB",
-    "onError": "#690005",
-    "errorContainer": "#93000A",
-    "onErrorContainer": "#FFDAD6",
-    "surface": "#131318",
-    "onSurface": "#E4E1E9",
-    "surfaceVariant": "#45464F",
-    "onSurfaceVariant": "#C6C5D0",
-    "surfaceContainerLowest": "#0E0E13",
-    "surfaceContainerLow": "#1B1B20",
-    "surfaceContainer": "#1F1F24",
-    "surfaceContainerHigh": "#29292F",
-    "surfaceContainerHighest": "#34343A",
-    "outline": "#90909A",
-    "outlineVariant": "#45464F",
-    "scrim": "#000000",
+    "bg": "#0D0D0D",            # 最外层背景
+    "surface": "#141414",       # 侧栏/卡片
+    "raised": "#1A1A1A",        # 输入框/表格/凸起控件
+    "hover": "#1F1F1F",         # 悬停
+    "active": "#262626",        # 选中/按压
+    "border": "#2A2A2A",
+    "border_strong": "#3D3D3D",
+    "text": "#ECECEC",
+    "text_secondary": "#9CA3AF",
+    "text_muted": "#6B7280",
+    "accent": "#10A37F",        # ChatGPT 品牌绿
+    "accent_hover": "#2AB894",
+    "accent_fg": "#FFFFFF",
+    "accent_soft": "#12211C",   # accent 低饱和底
+    "code_bg": "#0A0A0A",
+    "user_bubble": "#2A2A2A",
+    "error": "#EF4444",
+    "error_soft": "#2A1414",
+    "warn": "#F59E0B",
+    "warn_soft": "#2A2114",
+    "ok": "#34D399",
+    "ok_soft": "#12211C",
+    "scrollbar": "#3A3A3A",
 }
 
-_SCHEMES = {"light": LIGHT_SCHEME, "dark": DARK_SCHEME}
+LIGHT_SCHEME = {
+    "bg": "#FFFFFF",
+    "surface": "#F7F7F8",
+    "raised": "#FFFFFF",
+    "hover": "#F0F0F1",
+    "active": "#E8E8EA",
+    "border": "#E5E5E5",
+    "border_strong": "#D0D0D4",
+    "text": "#0D0D0D",
+    "text_secondary": "#6B7280",
+    "text_muted": "#9CA3AF",
+    "accent": "#10A37F",
+    "accent_hover": "#0E8F6F",
+    "accent_fg": "#FFFFFF",
+    "accent_soft": "#E6F4EF",
+    "code_bg": "#F5F5F5",
+    "user_bubble": "#EFEFEF",
+    "error": "#DC2626",
+    "error_soft": "#FDEBEB",
+    "warn": "#B45309",
+    "warn_soft": "#FDF3E3",
+    "ok": "#059669",
+    "ok_soft": "#E6F4EF",
+    "scrollbar": "#D0D0D4",
+}
+
+_SCHEMES = {"dark": DARK_SCHEME, "light": LIGHT_SCHEME}
 
 
 # ---------- 字体与图标 ----------
 
 
 def load_fonts() -> None:
-    """注册 Roboto 与 Material Symbols 字体（幂等）。"""
     try:
         db = QFontDatabase()
         for name in ("Roboto-Regular.ttf", "Roboto-Medium.ttf", "Roboto-Bold.ttf",
@@ -104,7 +93,16 @@ def load_fonts() -> None:
         pass
 
 
-# Material Symbols Outlined 常用码位（继承 Material Icons 经典码位）
+def scheme(dark: Optional[bool] = None) -> dict:
+    dark = _current_dark if dark is None else dark
+    return DARK_SCHEME if dark else LIGHT_SCHEME
+
+
+def is_dark() -> bool:
+    return _current_dark
+
+
+# Material Symbols 码位（继承 Material Icons 经典码位）
 _ICON_CODEPOINTS = {
     "chat": 0xE0B7, "folder": 0xE2C7, "construction": 0xEA86, "grid_view": 0xE9B0,
     "description": 0xE873, "memory": 0xE322, "receipt_long": 0xEAEF, "menu_book": 0xEA19,
@@ -116,15 +114,13 @@ _ICON_CODEPOINTS = {
     "list": 0xE896, "cloud_upload": 0xE2C3, "auto_awesome": 0xE65F, "extension": 0xE3E3,
     "bolt": 0xEA0B, "database": 0xE1DC, "folder_open": 0xE2C8, "visibility": 0xE8F4,
     "build": 0xE869, "book": 0xE866, "content_copy": 0xE14D, "open_in_new": 0xE89E,
+    "mic": 0xE029, "stop": 0xE047, "keyboard": 0xE312, "file_present": 0xEA0E,
 }
 
 
 def icon_char(name: str) -> str:
-    """返回 Material Symbols 图标字符；未知名称返回空。"""
     cp = _ICON_CODEPOINTS.get(name)
-    if cp is None:
-        return ""
-    return chr(cp)
+    return chr(cp) if cp is not None else ""
 
 
 def icon_font(size: int = 20) -> QFont:
@@ -136,132 +132,109 @@ def icon_font(size: int = 20) -> QFont:
     return font
 
 
-# ---------- QSS 生成 ----------
+# ---------- QSS ----------
 
 
 def build_qss(s: dict) -> str:
-    """由 M3 scheme 生成全局 QSS。"""
     return f"""
-QMainWindow, QWidget {{ background: {s['surface']}; color: {s['onSurface']}; font-family: 'Roboto'; font-size: 13px; }}
-QWidget#pageRoot {{ background: {s['surface']}; }}
-QLabel#brand {{ font-family: 'Roboto'; font-weight: 700; font-size: 16px; color: {s['primary']}; padding: 20px 20px 6px 24px; }}
-QLabel#title {{ font-size: 22px; font-weight: 700; color: {s['onSurface']}; }}
-QLabel#subtitle {{ font-size: 14px; font-weight: 500; color: {s['onSurface']}; }}
-QLabel#hint {{ color: {s['onSurfaceVariant']}; }}
+QMainWindow, QWidget {{ background: {s['bg']}; color: {s['text']}; font-family: 'Roboto'; font-size: 13px; }}
+QLabel#brand {{ font-family: 'Roboto'; font-weight: 700; font-size: 14px; color: {s['text']}; padding: 18px 18px 6px 18px; }}
+QLabel#title {{ font-size: 15px; font-weight: 600; color: {s['text']}; }}
+QLabel#subtitle {{ font-size: 12px; font-weight: 500; color: {s['text_secondary']}; }}
+QLabel#hint {{ color: {s['text_muted']}; }}
 QLabel#err {{ color: {s['error']}; }}
-QLabel#ok {{ color: {s['primary']}; }}
+QLabel#ok {{ color: {s['ok']}; }}
 
-/* ---- 导航（M3 Navigation Drawer） ---- */
+/* 侧栏（Codex 窄任务栏） */
 QListWidget#navList {{
-    background: {s['surfaceContainerLow']}; border: none; border-right: 1px solid {s['outlineVariant']};
-    font-size: 14px; outline: 0; padding-top: 4px; padding-bottom: 16px;
+    background: {s['surface']}; border: none; border-right: 1px solid {s['border']};
+    font-size: 13px; outline: 0; padding-top: 4px;
 }}
 QListWidget#navList::item {{
-    height: 44px; padding-left: 20px; border-radius: 22px; margin: 2px 12px;
-    color: {s['onSurfaceVariant']}; font-weight: 500;
+    height: 36px; padding-left: 14px; border-radius: 8px; margin: 1px 8px;
+    color: {s['text_secondary']};
 }}
-QListWidget#navList::item:hover {{ background: {s['surfaceContainerHigh']}; }}
-QListWidget#navList::item:selected {{
-    background: {s['secondaryContainer']}; color: {s['onSecondaryContainer']}; font-weight: 600;
-}}
+QListWidget#navList::item:hover {{ background: {s['hover']}; color: {s['text']}; }}
+QListWidget#navList::item:selected {{ background: {s['active']}; color: {s['text']}; font-weight: 500; }}
 
-/* ---- 按钮（M3 Filled / Outlined / Text） ---- */
+/* 按钮（Codex 式：绿主操作 / 灰次要） */
 QPushButton {{
-    background: {s['primary']}; color: {s['onPrimary']}; border: none; border-radius: 20px;
-    padding: 8px 22px; font-family: 'Roboto'; font-weight: 500; font-size: 13px;
+    background: {s['accent']}; color: {s['accent_fg']}; border: none; border-radius: 8px;
+    padding: 7px 16px; font-family: 'Roboto'; font-weight: 500; font-size: 13px;
 }}
-QPushButton:hover {{ background: {s['primaryContainer']}; color: {s['onPrimaryContainer']}; }}
-QPushButton:pressed {{ background: {s['primary']}; }}
-QPushButton:disabled {{ background: {s['surfaceContainerHighest']}; color: {s['onSurfaceVariant']}; }}
+QPushButton:hover {{ background: {s['accent_hover']}; }}
+QPushButton:pressed {{ background: {s['accent']}; }}
+QPushButton:disabled {{ background: {s['active']}; color: {s['text_muted']}; }}
 QPushButton#outlined {{
-    background: transparent; color: {s['primary']}; border: 1px solid {s['outline']}; border-radius: 20px;
+    background: transparent; color: {s['text']}; border: 1px solid {s['border_strong']}; border-radius: 8px;
 }}
-QPushButton#outlined:hover {{ background: {s['surfaceContainerHigh']}; }}
-QPushButton#outlined:pressed {{ background: {s['surfaceContainerHighest']}; }}
-QPushButton#text {{
-    background: transparent; color: {s['primary']}; border: none; border-radius: 20px;
-}}
-QPushButton#text:hover {{ background: {s['surfaceContainerHigh']}; }}
-QPushButton#danger {{
-    background: transparent; color: {s['error']}; border: 1px solid {s['outline']}; border-radius: 20px;
-}}
-QPushButton#danger:hover {{ background: {s['errorContainer']}; color: {s['onErrorContainer']}; }}
+QPushButton#outlined:hover {{ background: {s['hover']}; }}
+QPushButton#outlined:pressed {{ background: {s['active']}; }}
+QPushButton#text {{ background: transparent; color: {s['text_secondary']}; border: none; border-radius: 8px; }}
+QPushButton#text:hover {{ background: {s['hover']}; color: {s['text']}; }}
+QPushButton#danger {{ background: transparent; color: {s['error']}; border: 1px solid {s['border_strong']}; border-radius: 8px; }}
+QPushButton#danger:hover {{ background: {s['error_soft']}; }}
 
-/* ---- 输入（M3 Outlined Text Field） ---- */
+/* 输入（Codex 式圆角输入框） */
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
-    background: {s['surfaceContainerLow']}; border: 1px solid {s['outline']}; border-radius: 8px;
-    padding: 8px 10px; selection-background-color: {s['primaryContainer']};
-    selection-color: {s['onPrimaryContainer']}; font-family: 'Roboto'; font-size: 13px;
+    background: {s['raised']}; border: 1px solid {s['border']}; border-radius: 10px;
+    padding: 8px 12px; selection-background-color: {s['accent_soft']};
+    selection-color: {s['text']}; font-family: 'Roboto'; font-size: 13px;
 }}
 QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus {{
-    border: 2px solid {s['primary']}; padding: 7px 9px;
+    border: 1px solid {s['accent']}; background: {s['raised']};
 }}
-QComboBox::drop-down {{ border: none; width: 26px; }}
+QComboBox::drop-down {{ border: none; width: 24px; }}
 QComboBox QAbstractItemView {{
-    background: {s['surfaceContainerLow']}; color: {s['onSurface']};
-    border: 1px solid {s['outlineVariant']}; border-radius: 8px; selection-background-color: {s['secondaryContainer']};
-    selection-color: {s['onSecondaryContainer']};
+    background: {s['surface']}; color: {s['text']};
+    border: 1px solid {s['border']}; border-radius: 8px; selection-background-color: {s['active']};
 }}
 
-/* ---- 卡片 / 表格 ---- */
-QFrame#card {{
-    background: {s['surfaceContainerLow']}; border: 1px solid {s['outlineVariant']};
-    border-radius: 16px;
-}}
+/* 表格 */
 QTableWidget {{
-    background: {s['surfaceContainerLow']}; border: 1px solid {s['outlineVariant']}; border-radius: 12px;
-    gridline-color: {s['outlineVariant']}; selection-background-color: {s['secondaryContainer']};
-    selection-color: {s['onSecondaryContainer']}; font-family: 'Roboto';
+    background: {s['surface']}; border: 1px solid {s['border']}; border-radius: 10px;
+    gridline-color: {s['border']}; selection-background-color: {s['active']};
+    selection-color: {s['text']}; font-family: 'Roboto';
 }}
 QHeaderView::section {{
-    background: {s['surfaceContainerHigh']}; border: none; border-bottom: 1px solid {s['outlineVariant']};
-    padding: 10px; font-weight: 600; color: {s['onSurfaceVariant']};
+    background: {s['raised']}; border: none; border-bottom: 1px solid {s['border']};
+    padding: 8px 10px; font-weight: 500; color: {s['text_secondary']};
 }}
-QTableCornerButton::section {{ background: {s['surfaceContainerHigh']}; border: none; }}
+QTableCornerButton::section {{ background: {s['raised']}; border: none; }}
 
-/* ---- Tab（M3 下划线） ---- */
+/* Tab */
 QTabWidget::pane {{ border: none; background: transparent; }}
 QTabBar::tab {{
-    padding: 10px 18px; background: transparent; color: {s['onSurfaceVariant']};
+    padding: 8px 14px; background: transparent; color: {s['text_secondary']};
     font-weight: 500; border-bottom: 2px solid transparent;
 }}
-QTabBar::tab:selected {{ color: {s['primary']}; border-bottom: 2px solid {s['primary']}; }}
-QTabBar::tab:hover {{ color: {s['onSurface']}; }}
+QTabBar::tab:selected {{ color: {s['text']}; border-bottom: 2px solid {s['accent']}; }}
+QTabBar::tab:hover {{ color: {s['text']}; }}
 
-/* ---- 滚动区 / 对话框 / 进度 ---- */
+/* 滚动区 / 对话框 / 进度 */
 QScrollArea {{ border: none; background: transparent; }}
-QMessageBox, QDialog {{ background: {s['surfaceContainerLow']}; }}
-QMessageBox QLabel, QDialog QLabel {{ color: {s['onSurface']}; }}
+QMessageBox, QDialog {{ background: {s['surface']}; }}
+QMessageBox QLabel, QDialog QLabel {{ color: {s['text']}; }}
 QProgressBar {{
-    border: none; border-radius: 5px; background: {s['surfaceContainerHighest']};
-    text-align: center; color: {s['onSurface']}; height: 20px;
+    border: none; border-radius: 4px; background: {s['raised']};
+    text-align: center; color: {s['text_secondary']}; height: 6px;
 }}
-QProgressBar::chunk {{ background: {s['primary']}; border-radius: 5px; }}
-QStatusBar {{ background: {s['surfaceContainerLow']}; border-top: 1px solid {s['outlineVariant']}; color: {s['onSurfaceVariant']}; }}
+QProgressBar::chunk {{ background: {s['accent']}; border-radius: 4px; }}
+QStatusBar {{ background: {s['surface']}; border-top: 1px solid {s['border']}; color: {s['text_muted']}; }}
 QTextBrowser {{
-    background: {s['surfaceContainerLow']}; border: 1px solid {s['outlineVariant']};
-    border-radius: 12px; padding: 10px; color: {s['onSurface']}; font-family: 'Roboto';
+    background: transparent; border: none; padding: 2px; color: {s['text']}; font-family: 'Roboto';
 }}
-QSplitter::handle {{ background: {s['outlineVariant']}; }}
-QScrollBar:vertical {{ background: transparent; width: 10px; }}
-QScrollBar::handle:vertical {{ background: {s['outlineVariant']}; border-radius: 5px; min-height: 30px; }}
+QSplitter::handle {{ background: {s['border']}; }}
+QScrollBar:vertical {{ background: transparent; width: 8px; }}
+QScrollBar::handle:vertical {{ background: {s['scrollbar']}; border-radius: 4px; min-height: 30px; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
-QScrollBar:horizontal {{ background: transparent; height: 10px; }}
-QScrollBar::handle:horizontal {{ background: {s['outlineVariant']}; border-radius: 5px; min-width: 30px; }}
+QScrollBar:horizontal {{ background: transparent; height: 8px; }}
+QScrollBar::handle:horizontal {{ background: {s['scrollbar']}; border-radius: 4px; min-width: 30px; }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 """
 
 
-def scheme(dark: bool) -> dict:
-    return DARK_SCHEME if dark else LIGHT_SCHEME
-
-
-def is_dark() -> bool:
-    return _current_dark
-
-
 def apply_theme(app: QApplication, dark: Optional[bool] = None) -> bool:
-    """应用主题；dark=None 跟随系统。返回是否深色。"""
     global _current_dark
     if dark is None:
         dark = system_dark()
@@ -277,7 +250,7 @@ def system_dark() -> bool:
 
         return QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Dark
     except Exception:
-        return False
+        return True
 
 
 def load_theme_pref() -> Optional[bool]:

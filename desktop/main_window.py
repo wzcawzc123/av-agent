@@ -52,10 +52,10 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # 左侧导航（M3 Navigation Drawer）
+        # 左侧导航（Codex 窄任务栏）
         self.nav = QListWidget()
         self.nav.setObjectName("navList")
-        self.nav.setFixedWidth(200)
+        self.nav.setFixedWidth(176)
         for icon, label, key in NAV_ITEMS:
             item = QListWidgetItem(f"{icon_char(icon)}   {label}")
             item.setData(Qt.UserRole, key)
@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
         nav_box = QWidget()
         nav_box.setObjectName("pageRoot")
         nav_box.setLayout(nav_col)
-        nav_box.setFixedWidth(200)
+        nav_box.setFixedWidth(176)
         root.addWidget(nav_box)
 
         # 右侧页面堆栈
@@ -102,7 +102,11 @@ class MainWindow(QMainWindow):
     def _on_nav_changed(self, row: int) -> None:
         if 0 <= row < len(NAV_ITEMS):
             key = NAV_ITEMS[row][2]
-            self.stack.setCurrentWidget(self.pages[key])
-            refresh = getattr(self.pages[key], "on_show", None)
+            page = self.pages[key]
+            self.stack.setCurrentWidget(page)
+            from desktop.anim import fade_in
+
+            fade_in(page, duration=160)
+            refresh = getattr(page, "on_show", None)
             if refresh:
                 refresh()

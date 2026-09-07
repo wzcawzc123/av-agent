@@ -35,55 +35,13 @@ from PySide6.QtWidgets import (
 )
 
 from desktop.api import AvApi, ApiError
+from desktop.anim import MessageBubble, ToolCallCard, add_shadow
 from desktop.files import OUTPUT_ROOT, download_file, open_in_folder
 from desktop.sse import ChatSseWorker, SseWorker
+from desktop.theme import icon_char, icon_font
 from desktop.worker import ApiCallThread, run_api
 
 import markdown as md
-
-_SCENE_BADGES = [
-    ("会议室", "🏢 会议室"), ("圆桌", "🏢 圆桌会议"), ("培训", "🏫 培训教室"),
-    ("报告厅", "🎤 报告厅"), ("礼堂", "🎤 礼堂"), ("剧场", "🎭 剧场"), ("多功能厅", "🎬 多功能厅"),
-    ("展厅", "🖼️ 展厅"), ("展馆", "🖼️ 展馆"), ("博物馆", "🏛️ 博物馆"),
-    ("指挥中心", "🖥️ 指挥中心"), ("监控", "📹 监控室"), ("调度", "📡 调度室"),
-    ("医院", "🏥 医院"), ("校园", "🏫 校园"), ("园区", "🏭 园区"), ("厂", "🏭 厂区"),
-]
-
-_BUBBLE_STYLE = {
-    "user": {"bg": "#4665EA", "fg": "#FFFFFF", "border": "#4665EA"},
-    "system": {"bg": "#E0E1F9", "fg": "#171B2C", "border": "#E0E1F9"},
-    "warn": {"bg": "#FFD7F0", "fg": "#2D1228", "border": "#FFD7F0"},
-    "err": {"bg": "#FFDAD6", "fg": "#410002", "border": "#FFDAD6"},
-    "engine": {"bg": "#DEE0FF", "fg": "#00145B", "border": "#DEE0FF"},
-    "ok": {"bg": "#DEE0FF", "fg": "#00145B", "border": "#DEE0FF"},
-    "agent": {"bg": "#EBE6EF", "fg": "#1B1B1F", "border": "#EBE6EF"},
-    "": {"bg": "#EBE6EF", "fg": "#1B1B1F", "border": "#EBE6EF"},
-}
-
-_BUBBLE_STYLE_DARK = {
-    "user": {"bg": "#B9C4FF", "fg": "#08208F", "border": "#B9C4FF"},
-    "system": {"bg": "#43465B", "fg": "#E0E1F9", "border": "#43465B"},
-    "warn": {"bg": "#5D3D56", "fg": "#FFD7F0", "border": "#5D3D56"},
-    "err": {"bg": "#93000A", "fg": "#FFDAD6", "border": "#93000A"},
-    "engine": {"bg": "#2A47C6", "fg": "#DEE0FF", "border": "#2A47C6"},
-    "ok": {"bg": "#2A47C6", "fg": "#DEE0FF", "border": "#2A47C6"},
-    "agent": {"bg": "#29292F", "fg": "#E4E1E9", "border": "#29292F"},
-    "": {"bg": "#29292F", "fg": "#E4E1E9", "border": "#29292F"},
-}
-
-
-def _bubble_palette(style: str) -> dict:
-    from desktop.theme import is_dark
-
-    table = _BUBBLE_STYLE_DARK if is_dark() else _BUBBLE_STYLE
-    return table.get(style, table[""])
-
-
-def _scene_badge(text: str) -> str:
-    for keyword, badge in _SCENE_BADGES:
-        if keyword in text:
-            return badge
-    return ""
 
 
 class ChatPage(QWidget):
@@ -162,6 +120,7 @@ class ChatPage(QWidget):
 
         # 确认卡片
         self.confirm_card = QFrame()
+        add_shadow(self.confirm_card, blur=24, dy=3, alpha=30)
         self.confirm_card.setVisible(False)
         card = QVBoxLayout(self.confirm_card)
         card.setContentsMargins(12, 10, 12, 10)
@@ -192,18 +151,42 @@ class ChatPage(QWidget):
         progress_row.addWidget(self.cancel_btn)
         root.addLayout(progress_row)
 
-        # 输入区
-        bottom = QHBoxLayout()
-        self.input = QLineEdit()
-        self.input.setPlaceholderText(
-            "描述你的需求，例如：为一个 300 平米酒店大堂做会议系统方案，预算 20 万（Enter 发送）"
+        # 输入区（Codex 式：大圆角输入 + 发送按钮 + 底部提示）
+        input_box = QWidget()
+        input_box.setObjectName("inputBox")
+        from desktop.theme import scheme as _scheme
+
+        _s = _scheme()
+        input_box.setStyleSheet(
+            f"QWidget#inputBox {{ background:{_s['raised']}; border:1px solid {_s['border']};"
+            f" border-radius:16px; }}"
         )
+        input_lay = QHBoxLayout(input_box)
+        input_lay.setContentsMargins(14, 4, 6, 4)
+        input_lay.setSpacing(8)
+        self.input = QLineEdit()
+        self.input.setStyleSheet(
+            f"QLineEdit {{ background:transparent; border:none; padding:10px 4px; font-size:14px; }}"
+            f"QLineEdit:focus {{ border:none; background:transparent; }}"
+        )
+        self.input.setPlaceholderText("描述需求或提问… 例如：300 平酒店大堂会议系统方案，预算 20 万")
         self.input.returnPressed.connect(self._send)
-        bottom.addWidget(self.input, 1)
-        self.send_btn = QPushButton("发送 ➤")
+        input_lay.addWidget(self.input, 1)
+        self.send_btn = QPushButton(icon_char("send"))
+        self.send_btn.setFont(icon_font(18))
+        self.send_btn.setFixedSize(38, 38)
+        self.send_btn.setCursor(Qt.PointingHandCursor)
+        self.send_btn.setToolTip("发送（Enter）")
         self.send_btn.clicked.connect(self._send)
-        bottom.addWidget(self.send_btn)
-        root.addLayout(bottom)
+        input_lay.addWidget(self.send_btn)
+        input_row = QVBoxLayout()
+        input_row.setSpacing(2)
+        input_row.addWidget(input_box)
+        tip = QLabel("按 Enter 发送 · 可在 Agent 模式直接说「导入 xxx.xlsx」完成智能入库")
+        tip.setObjectName("hint")
+        tip.setAlignment(Qt.AlignCenter)
+        input_row.addWidget(tip)
+        root.addLayout(input_row)
 
         self.refresh_projects()
         self._append_message("system", "你好，我是音视频售前工作流 Agent。描述你的项目需求，我会逐项澄清并生成方案文档。")
@@ -357,11 +340,15 @@ class ChatPage(QWidget):
     # ---------- Agent 模式（SSE 流式） ----------
 
     def _start_agent_stream(self, text: str, project_id: Optional[int]) -> None:
-        self._agent_bubble = self._make_bubble("agent", "")
-        row = QHBoxLayout()
-        row.addWidget(self._agent_bubble)
-        row.addStretch(1)
-        self.msg_layout.insertLayout(self.msg_layout.count() - 1, row)
+        from datetime import datetime
+
+        self._agent_bubble = MessageBubble(
+            "agent", "auto_awesome", "AV Agent",
+            datetime.now().strftime("%H:%M"), bubble_style="agent", parent=self,
+        )
+        self.msg_layout.insertWidget(self.msg_layout.count() - 1, self._agent_bubble)
+
+        self._scroll_to_bottom()
         worker = ChatSseWorker(
             self.api.base_url,
             {"text": text, "project_id": project_id},
@@ -380,10 +367,10 @@ class ChatPage(QWidget):
             self._scroll_to_bottom()
 
     def _on_agent_tool(self, name: str, result: str) -> None:
-        bubble = getattr(self, "_agent_bubble", None)
-        if bubble is not None:
-            bubble.insertPlainText(f"\n\n🔧 正在调用工具 {name}…\n")
-            self._scroll_to_bottom()
+        # Codex 风格：工具调用以卡片插入，而非纯文本
+        card = ToolCallCard(name, result)
+        self.msg_layout.insertWidget(self.msg_layout.count() - 1, card)
+        self._scroll_to_bottom()
 
     def _on_agent_done(self, need_config: bool, reply: str, pid: int) -> None:
         self._set_busy(False)
@@ -532,13 +519,13 @@ class ChatPage(QWidget):
             return None
 
     def _show_download_bar(self, files: list[str]) -> None:
-        from desktop.theme import scheme, is_dark
+        from desktop.theme import scheme
 
-        s = scheme(is_dark())
+        s = scheme()
         bar = QFrame()
         bar.setStyleSheet(
-            f"background:{s['primaryContainer']};color:{s['onPrimaryContainer']};"
-            "border-radius:12px;"
+            f"background:{s['accent_soft']};color:{s['text']};"
+            f"border:1px solid {s['border']};border-radius:12px;"
         )
         lay = QHBoxLayout(bar)
         lay.setContentsMargins(12, 6, 12, 6)
@@ -555,25 +542,30 @@ class ChatPage(QWidget):
         if downloaded:
             self._show_download_bar(downloaded)
 
-    # ---------- 消息渲染（Markdown + 打字机） ----------
+    # ---------- 消息渲染（Codex 风格：打字机 + 无气泡 Markdown） ----------
 
     def _typewrite(self, text: str) -> None:
         """打字机流式：纯文本渐进，完成后渲染 Markdown。"""
-        bubble = self._make_bubble("agent", text[:1])
+        from datetime import datetime
+
+        bubble = MessageBubble("agent", "auto_awesome", "AV Agent",
+                               datetime.now().strftime("%H:%M"), bubble_style="agent", parent=self)
+        self.msg_layout.insertWidget(self.msg_layout.count() - 1, bubble)
+
         self._typing = bubble
         self._typing_buf = text
-        step = max(1, len(text) // 60)
+        step = max(1, len(text) // 80)
         self._typing_pos = 0
 
         def tick() -> None:
             if self._typing is None:
                 return
             self._typing_pos = min(len(self._typing_buf), self._typing_pos + step)
-            self._typing.setPlainText(self._typing_buf[: self._typing_pos] + "▍")
+            self._typing.set_text(self._typing_buf[: self._typing_pos] + "▍")
             self._scroll_to_bottom()
             if self._typing_pos >= len(self._typing_buf):
                 self._typing_timer.stop()
-                self._typing.setHtml(_md_html(self._typing_buf))
+                self._typing.set_html(_md_html(self._typing_buf))
                 self._typing = None
                 self._scroll_to_bottom()
 
@@ -582,43 +574,23 @@ class ChatPage(QWidget):
         self._typing_timer.start(16)
 
     def _append_message(self, style: str, text: str) -> None:
-        if style == "user":
-            bubble = self._make_bubble("user", text)
-            bubble.setAlignment(Qt.AlignRight)
-            row = QHBoxLayout()
-            row.addStretch(1)
-            row.addWidget(bubble)
-        else:
-            bubble = self._make_bubble(style if style in _BUBBLE_STYLE else "agent", text)
-            badge = _scene_badge(text)
-            if badge:
-                badge_label = QLabel(badge)
-                badge_label.setObjectName("hint")
-                row = QVBoxLayout()
-                row.addWidget(badge_label)
-                row.addWidget(bubble)
-            else:
-                row = QHBoxLayout()
-                row.addWidget(bubble)
-                row.addStretch(1)
-        self.msg_layout.insertLayout(self.msg_layout.count() - 1, row)
-        self._scroll_to_bottom()
+        from datetime import datetime
 
-    def _make_bubble(self, style: str, text: str) -> QTextBrowser:
-        palette = _bubble_palette(style)
-        browser = QTextBrowser()
-        browser.setReadOnly(True)
-        browser.setFrameShape(QTextBrowser.NoFrame)
-        browser.setMaximumWidth(820)
-        browser.setStyleSheet(
-            f"QTextBrowser {{ background:{palette['bg']}; color:{palette['fg']};"
-            f" border:1px solid {palette['border']}; border-radius:10px; padding:10px 14px; }}"
-        )
-        browser.setOpenExternalLinks(True)
-        browser.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
-        browser.setPlainText(text)
-        browser.document().setDocumentMargin(4)
-        return browser
+        if style == "user":
+            bubble = MessageBubble("user", "person", "你",
+                                   datetime.now().strftime("%H:%M"), bubble_style="user", parent=self,
+                                   max_width=760)
+            bubble.set_text(text)
+            self.msg_layout.insertWidget(self.msg_layout.count() - 1, bubble)
+        else:
+            style = style if style in ("warn", "err", "engine", "ok", "system") else "agent"
+            bubble = MessageBubble("agent", "auto_awesome" if style == "agent" else "info",
+                                   "AV Agent" if style == "agent" else "系统",
+                                   datetime.now().strftime("%H:%M"), bubble_style=style, parent=self)
+            bubble.set_html(_md_html(text))
+            self.msg_layout.insertWidget(self.msg_layout.count() - 1, bubble)
+
+        self._scroll_to_bottom()
 
     def _scroll_to_bottom(self) -> None:
         sb = self.msg_scroll.verticalScrollBar()
@@ -642,14 +614,23 @@ class ChatPage(QWidget):
 
 
 def _md_html(text: str) -> str:
-    """Markdown → HTML（含表格/列表/代码块），链接新窗口打开。"""
+    """Markdown → HTML（Codex 风格：代码块深底圆角、链接品牌绿）。"""
+    from desktop.theme import scheme
+
+    s = scheme()
     body = md.markdown(text, extensions=["extra", "nl2br"])
     return (
         "<style>"
-        "table{border-collapse:collapse;margin:8px 0}td,th{border:1px solid #d9dde3;padding:4px 8px}"
-        "code{background:#f0f2f5;padding:1px 4px;border-radius:4px}"
-        "pre{background:#f7f8fa;padding:8px;border-radius:6px}"
-        "h1,h2,h3{font-size:1.15em}"
-        "a{color:#0066ff}"
+        f"body{{font-size:14px;line-height:1.7}}"
+        f"table{{border-collapse:collapse;margin:10px 0}}"
+        f"td,th{{border:1px solid {s['border']};padding:6px 10px}}"
+        f"code{{background:{s['raised']};color:{s['ok']};padding:2px 6px;border-radius:6px;font-family:'Consolas','SF Mono',monospace;font-size:12.5px}}"
+        f"pre{{background:{s['code_bg']};padding:12px 14px;border-radius:12px;border:1px solid {s['border']};overflow-x:auto}}"
+        f"pre code{{background:transparent;color:{s['text']};padding:0;border-radius:0}}"
+        f"h1,h2,h3{{font-weight:600;margin:14px 0 8px}}"
+        f"h1{{font-size:17px}}h2{{font-size:15px}}h3{{font-size:14px}}"
+        f"a{{color:{s['accent']}}}"
+        f"ul,ol{{margin:6px 0;padding-left:22px}}"
+        f"blockquote{{border-left:3px solid {s['accent']};margin:8px 0;padding:2px 12px;color:{s['text_secondary']}}}"
         "</style>" + body
     )

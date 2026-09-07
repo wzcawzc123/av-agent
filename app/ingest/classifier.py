@@ -81,12 +81,13 @@ async def extract_products(provider, text: str) -> list[dict]:
             "brand": str(p.get("brand") or "").strip(),
             "category": str(p.get("category") or "").strip(),
             "description": str(p.get("description") or "").strip(),
+            "unit": str(p.get("unit") or "").strip(),
             "base_price": _to_price(p.get("base_price")),
             "market_price": _to_price(p.get("market_price")),
         }
         params = p.get("params")
         if isinstance(params, dict):
-            item["params"] = {str(k): str(v) for k, v in params.items()}
+            item["params"] = {str(k): str(v) for k, v in params.items() if str(v).strip()}
         if item["name"] or item["model"]:
             cleaned.append(item)
     return cleaned

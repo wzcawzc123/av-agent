@@ -173,9 +173,16 @@ async def llm_accessories(provider, slots: dict, main_devices: list[dict]) -> li
         return []
 
 
-def _compose_from_template(slots: dict, session, tpl_main: list[dict]) -> list[dict]:
-    """模板主设备行作基底：需求系统缺角色用引擎生成后照常品牌回填。"""
+def _compose_from_template(slots: dict, session, tpl_main: list[dict],
+                           tpl_area: float = 0, scale_rules=None) -> list[dict]:
+    """模板主设备行作基底：按面积缩放 + 缺失角色引擎补齐 + 品牌回填。"""
     devices = [_tpl_row_to_device(r) for r in tpl_main]
+    # 面积缩放：目标面积 vs 模板面积差，应用模板缩放规则
+    target_area = float(slots.get("area") or 0)
+    if target_area > 0 and tpl_area > 0 and target_area != tpl_area:
+        from app.catalog.scaler import apply_scale_rules
+
+        devices = apply_scale_rules(devices, scale_rules, tpl_area, target_area)
     brand_c = parse_brand_constraints(slots.get("brand"))
     missing: list[dict] = []
     for sys in infer_systems(slots):
@@ -200,7 +207,9 @@ async def compose_devices(provider, slots: dict, session, config_template=None) 
     """
     tpl_main, tpl_acc = _tpl_rows(config_template)
     if tpl_main:
-        devices = _compose_from_template(slots, session, tpl_main)
+        tpl_area = float(getattr(config_template, "area", 0) or 0)
+        scale_rules = getattr(config_template, "scale_rules", None)
+        devices = _compose_from_template(slots, session, tpl_main, tpl_area, scale_rules)
         devices += [_tpl_row_to_device(r, "配件辅材") for r in tpl_acc]
         return devices
 

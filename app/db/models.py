@@ -21,13 +21,31 @@ class Product(Base):
     brand: Mapped[str] = mapped_column(String(100), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     params_json: Mapped[str] = mapped_column(Text, default="{}")
+    unit: Mapped[str] = mapped_column(String(30), default="")
     base_price: Mapped[float] = mapped_column(Float, default=0)
     market_price: Mapped[float] = mapped_column(Float, default=0)
     category: Mapped[str] = mapped_column(String(100), default="")
     system: Mapped[str] = mapped_column(String(50), default="")  # 所属系统 code
     role_tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of role codes
     active: Mapped[int] = mapped_column(Integer, default=1)
+    source_batch: Mapped[str] = mapped_column(String(40), default="")  # 入库批次（product_sources.batch_id）
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
+class ProductSource(Base):
+    """产品入库来源追踪：每次上传 Excel 记录批次、文件、LLM 表头映射与校验状态。"""
+
+    __tablename__ = "product_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[str] = mapped_column(String(40), index=True)
+    file_name: Mapped[str] = mapped_column(String(200), default="")
+    header_map: Mapped[str] = mapped_column(Text, default="{}")   # LLM 表头→统一字段映射 JSON
+    status: Mapped[str] = mapped_column(String(20), default="ok")  # ok|warn
+    warn: Mapped[str] = mapped_column(Text, default="")
+    added: Mapped[int] = mapped_column(Integer, default=0)
+    skipped: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
 
 class Template(Base):
@@ -53,6 +71,7 @@ class ConfigTemplate(Base):
     systems: Mapped[str] = mapped_column(Text, default="[]")      # JSON list of system codes
     config_level: Mapped[str] = mapped_column(String(50), default="")
     brand: Mapped[str] = mapped_column(String(200), default="")   # 逗号分隔
+    scale_rules: Mapped[str] = mapped_column(Text, default="[]")  # JSON list of 面积缩放规则
     config_json: Mapped[str] = mapped_column(Text, default="{}")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 

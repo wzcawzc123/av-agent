@@ -65,11 +65,18 @@ async def _ingest(provider, file_path: str, filename: str, target: str = "auto")
         if not items:
             return {"ok": False, "message": "未从文件中识别到产品行（可能是知识文档？可指定 target=knowledge 重试）",
                     "type": "products", "preview": []}
+        import uuid as _uuid
+
+        batch = f"ingest-{_uuid.uuid4().hex[:10]}"
         with get_session() as s:
-            added, skipped = ingest_products(s, items)
+            added, skipped, warns = ingest_products(s, items, batch_id=batch,
+                                                    source_file=filename)
+        msg = summarize("products", added, skipped)
+        if warns:
+            msg += f"\n⚠ 校验告警 {len(warns)} 条（如 底价高于单价）：" + "；".join(warns[:3])
         return {"ok": True, "type": "products", "title": title, "summary": summary,
-                "message": summarize("products", added, skipped),
-                "added": added, "skipped": skipped, "preview": items[:5]}
+                "message": msg, "added": added, "skipped": skipped, "warns": warns[:5],
+                "batch_id": batch, "preview": items[:5]}
 
     if target == "knowledge":
         doc = await extract_knowledge(provider, text, filename)

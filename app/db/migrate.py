@@ -26,9 +26,11 @@ _TABLE_COLUMNS = {
         ("brand", "VARCHAR(100) DEFAULT ''"),
         ("description", "TEXT DEFAULT ''"),
         ("params_json", "TEXT DEFAULT '{}'"),
+        ("unit", "VARCHAR(30) DEFAULT ''"),
         ("system", "VARCHAR(50) DEFAULT ''"),
         ("role_tags", "TEXT DEFAULT '[]'"),
         ("active", "INTEGER DEFAULT 1"),
+        ("source_batch", "VARCHAR(40) DEFAULT ''"),
         ("updated_at", "DATETIME DEFAULT '1970-01-01 00:00:00'"),
     ],
     "projects": [
@@ -41,6 +43,7 @@ _TABLE_COLUMNS = {
         ("systems", "TEXT DEFAULT '[]'"),
         ("config_level", "VARCHAR(50) DEFAULT ''"),
         ("brand", "VARCHAR(200) DEFAULT ''"),
+        ("scale_rules", "TEXT DEFAULT '[]'"),
     ],
     "tasks": [
         ("task_key", "VARCHAR(64) DEFAULT ''"),

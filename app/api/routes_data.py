@@ -288,14 +288,16 @@ async def ingest_config_template(
         return {"ok": False, "message": "未能从配置文档中解析出面积/场景/设备行，请检查文档格式后重试。"}
 
     systems = data.get("systems") or []
+    scale_rules = data.get("scale_rules") or []
     tpl_name = name or f"{t_scene} {t_area}㎡配置模板"
     with get_session() as s:
         c = save_config_template(s, tpl_name, int(t_area), t_scene,
                                  {"rows": rows}, systems=systems or None,
-                                 config_level=config_level or str(data.get("config_level") or ""))
+                                 config_level=config_level or str(data.get("config_level") or ""),
+                                 scale_rules=scale_rules or None)
     return {"ok": True, "id": c.id, "name": tpl_name, "area": int(t_area), "scene": t_scene,
-            "systems": systems, "rows": len(rows),
-            "message": f"配置模板已入库：{t_scene} {t_area}㎡，{len(rows)} 行设备"}
+            "systems": systems, "rows": len(rows), "scale_rules": len(scale_rules),
+            "message": f"配置模板已入库：{t_scene} {t_area}㎡，{len(rows)} 行设备，{len(scale_rules)} 条缩放规则"}
 
 
 @router.get("/templates/{template_id}/bom")

@@ -90,14 +90,16 @@ INGEST_CLASSIFY_PROMPT = """你是数据分类专家。判断下面文件内容�
 输出：{"type": "products|knowledge|tender|other", "title": "简短标题", "summary": "一句话内容摘要", "confidence": 0-1}
 只输出 JSON，不要解释。"""
 
-INGEST_PRODUCTS_PROMPT = """你是产品数据录入专家。从下面文件内容中提取所有产品，输出 JSON：{"products": [{"name": "产品名称", "model": "型号", "brand": "品牌", "category": "分类", "description": "参数/描述", "base_price": 底价数字或0, "market_price": 市场价数字或0, "params": {"其他参数键": "值"}}]}
+INGEST_PRODUCTS_PROMPT = """你是产品数据录入专家。从下面文件内容中提取所有产品，输出 JSON：{"products": [{"name": "产品名称", "model": "型号", "brand": "品牌", "category": "分类", "description": "描述", "unit": "单位", "base_price": 底价数字或0, "market_price": 市场价数字或0, "params": {"参数名": "值"}}]}
 
 规则：
 1. 严格按原文提取，禁止编造型号、品牌或价格；原文没有的字段填空字符串/0。
 2. model 是唯一标识：同一型号只保留一条。
 3. 表格内容注意"分类/类别"列与分段标题，归入 category。
 4. 价格数字去掉货币符号与千分位；没有价格填 0。
-5. 只输出 JSON，不要解释。"""
+5. params 为【参数结构化】：把"参数/规格/描述"长文本解析成键值对，键统一用中文标准名（功率/频响/阻抗/尺寸/亮度/点距/分辨率/接口/通道数/数量配置等），值保留数字+单位原文（如 400W、8Ω、75寸、P2.5）；只提取关键参数 5-12 个，无参数则给 {}。
+6. 单位（只/台/套/项/平米）单独填 unit 字段。
+7. 只输出 JSON，不要解释。"""
 
 INGEST_KNOWLEDGE_PROMPT = """你是知识整理专家。把下面文档内容整理成知识库条目，只输出 JSON。
 
@@ -107,14 +109,15 @@ INGEST_KNOWLEDGE_PROMPT = """你是知识整理专家。把下面文档内容整
 
 INGEST_CONFIG_PROMPT = """你是音视频系统配置专家。从下面配置文档中提取常规配置模板，只输出 JSON。
 
-输出：{"area": 适用面积数字, "scene": "场景（如 会议室/报告厅/体育馆）", "config_level": "低配|中配|高配", "systems": ["prosound","speech","display",...], "rows": [{"system":"prosound","type":"专业音箱","spec":"10寸 壁挂","brand":"","model":"","qty":4,"unit":"只","note":""}]}
+输出：{"area": 适用面积数字, "scene": "场景（如 会议室/报告厅/体育馆）", "config_level": "低配|中配|高配", "systems": ["prosound","speech","display",...], "rows": [{"system":"prosound","type":"专业音箱","spec":"10寸 壁挂","brand":"","model":"","qty":4,"unit":"只","note":""}], "scale_rules": [{"role":"main_speaker","rule":"数量=面积/50，取整","nonlinear":true}]}
 
 规则：
 1. area 必填（数字平方米）；scene 必填；无明确数值时按文档表述推断（如"100 平米"→100）。
 2. systems 用系统 code：prosound 扩声 / speech 发言 / display 显示 / control 中控矩阵 / paperless 无纸化 / distributed 分布式 / lighting 灯光 / broadcast 广播 / videoconf 视频会议。
 3. rows 每项为一台/一类设备，type 为设备类型名，spec 为规格参数，qty 数量，unit 单位；原文没有的字段填空字符串/1/台。
-4. 严格按原文提取，禁止编造型号；品牌/型号可留空。
-5. 只输出 JSON，不要解释。"""
+4. scale_rules 为【面积缩放规则】：说明当项目面积≠模板面积时，各角色设备数量/规格如何按面积调整（如"音箱数量=面积/50 只，取整""线阵数量按每 20m 宽 1 组"）；无明确规则给 []。
+5. 严格按原文提取，禁止编造型号；品牌/型号可留空。
+6. 只输出 JSON，不要解释。"""
 
 PPT_PROMPT = """你是售前演示专家。根据设备清单与方案生成 PPT 大纲，输出 JSON：{"slides": [{"title":"","bullets":[]}]}。只输出 JSON。"""
 

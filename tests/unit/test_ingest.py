@@ -97,13 +97,15 @@ async def test_classify_document_unknown_falls_back():
 async def test_extract_products_parses_and_cleans():
     provider = _FakeProvider(
         '{"products": [{"name":"会议一体机","model":"MP-75C","brand":"MAXHUB",'
-        '"base_price":"20000","market_price":"¥28,000","params":{"屏幕":"75寸"}}]}'
+        '"base_price":"20000","market_price":"¥28,000","unit":"台",'
+        '"params":{"功率":"400W","尺寸":"75寸","接口":"HDMI×2"}}]}'
     )
     items = await extract_products(provider, "表格")
     assert len(items) == 1
     assert items[0]["model"] == "MP-75C"
     assert items[0]["market_price"] == 28000.0
-    assert items[0]["params"] == {"屏幕": "75寸"}
+    assert items[0]["unit"] == "台"
+    assert items[0]["params"] == {"功率": "400W", "尺寸": "75寸", "接口": "HDMI×2"}
 
 
 @pytest.mark.asyncio
@@ -136,7 +138,7 @@ def test_ingest_products_dedup(engine):
         {"name": "无线投屏器", "model": "WB03", "brand": "MAXHUB"},
     ]
     with get_session(engine) as s:
-        added, skipped = ingest_products(s, items)
+        added, skipped, warns = ingest_products(s, items)
         assert added == 2
         assert skipped == 1
         assert s.query(Product).count() == 2

@@ -16,7 +16,7 @@ def save_template(session, name: str, type_: str, file_path: str,
 
 def save_config_template(session, name: str, area: int, scene: str, config_json: dict,
                          systems: list | None = None, config_level: str = "",
-                         brand: str = "") -> ConfigTemplate:
+                         brand: str = "", scale_rules: list | None = None) -> ConfigTemplate:
     c = ConfigTemplate(
         name=name,
         area=area,
@@ -24,6 +24,7 @@ def save_config_template(session, name: str, area: int, scene: str, config_json:
         systems=json.dumps(systems or [], ensure_ascii=False),
         config_level=config_level,
         brand=brand,
+        scale_rules=json.dumps(scale_rules or [], ensure_ascii=False),
         config_json=json.dumps(config_json, ensure_ascii=False),
     )
     session.add(c)

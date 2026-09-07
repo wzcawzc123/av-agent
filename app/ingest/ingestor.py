@@ -6,10 +6,14 @@ from app.db.models import Product
 from app.knowledge.retriever import register_document
 
 
-def ingest_products(session, items: list[dict]) -> tuple[int, int]:
-    """写入产品库。返回 (新增条数, 跳过条数)。model 唯一，存在即跳过。"""
+def ingest_products(session, items: list[dict], batch_id: str = "",
+                    source_file: str = "") -> tuple[int, int, list[str]]:
+    """写入产品库。返回 (新增条数, 跳过条数, 校验告警列表)。model 唯一，存在即跳过。"""
+    import json
+
     added = 0
     skipped = 0
+    warns: list[str] = []
     existing_models = {m for (m,) in session.query(Product.model).all()}
     for item in items:
         model = str(item.get("model") or "").strip()
@@ -20,8 +24,10 @@ def ingest_products(session, items: list[dict]) -> tuple[int, int]:
         if model and model in existing_models:
             skipped += 1
             continue
-        import json
-
+        base = float(item.get("base_price") or 0)
+        market = float(item.get("market_price") or 0)
+        if base > 0 < market and base > market:
+            warns.append(f"{model or name}: 底价({base})高于单价({market})")
         params = item.get("params") or {}
         p = Product(
             name=name or model,
@@ -29,16 +35,33 @@ def ingest_products(session, items: list[dict]) -> tuple[int, int]:
             brand=str(item.get("brand") or "").strip(),
             description=str(item.get("description") or "").strip(),
             params_json=json.dumps(params, ensure_ascii=False),
-            base_price=float(item.get("base_price") or 0),
-            market_price=float(item.get("market_price") or 0),
+            unit=str(item.get("unit") or "").strip(),
+            base_price=base,
+            market_price=market,
             category=str(item.get("category") or "").strip(),
+            source_batch=batch_id,
         )
         session.add(p)
         if model:
             existing_models.add(model)
         added += 1
+    # 来源追踪
+    from app.db.models import ProductSource
+
+    src = ProductSource(
+        batch_id=batch_id or "manual",
+        file_name=source_file,
+        header_map=json.dumps({"识别方式": "LLM 智能提取",
+                               "字段": ["名称", "型号", "品牌", "参数", "单位", "底价", "单价"]},
+                              ensure_ascii=False),
+        status="warn" if warns else "ok",
+        warn="; ".join(warns[:5]),
+        added=added,
+        skipped=skipped,
+    )
+    session.add(src)
     session.commit()
-    return added, skipped
+    return added, skipped, warns
 
 
 def ingest_knowledge(session, doc: dict) -> int:

@@ -50,6 +50,19 @@ async def generate(body: GenerateIn):
         "project_id": body.project_id,
     }
     task_id = submit_task(body.project_id, cfg, slots)
+    # 项目记忆蒸馏：生成提交后把需求要点沉淀到全局 MEMORY.md（跨会话复用）
+    try:
+        from app.api.routes_agent import _memory_write
+
+        systems = slots.get("systems") or []
+        systems_txt = "、".join(systems) if systems else "自动推断"
+        _memory_write(
+            f"项目#{body.project_id}: {slots.get('scene') or '?'} {slots.get('area') or '?'}㎡，"
+            f"品牌[{slots.get('brand') or '不限'}]，系统[{systems_txt}]，"
+            f"预算[{slots.get('budget') or '?'}]，交付物[{slots.get('deliverables') or '默认'}]"
+        )
+    except Exception:
+        pass
     return {"task_id": task_id}
 
 
@@ -138,6 +151,13 @@ def engine_deviation(body: EngineDeviationIn):
              "deviation": "" if r.confidence != "low" else "待人工确认",
              "note": r.confidence}
             for t, r in zip(body.tender_items, results)]
+    # 参数级比对增强：招标参数 vs 我方参数逐项数值比对，负偏离标注具体项+差值+应对
+    try:
+        from app.engines.deviation.param_compare import enhance_deviation_rows
+
+        rows = enhance_deviation_rows(rows)
+    except Exception:
+        pass
     build_deviation_sheet(out, {}, rows)
     low = sum(1 for r in results if r.confidence == "low")
     return {"file": out, "results": [vars(r) for r in results], "low_confidence": low}

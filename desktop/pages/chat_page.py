@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QTextBrowser,
@@ -65,45 +66,50 @@ class ChatPage(QWidget):
         root.setContentsMargins(16, 12, 16, 12)
         root.setSpacing(10)
 
-        # 顶部：会话与模式
+        # 顶部工具栏（Codex 极简：图标化、会话下拉弹性伸缩，杜绝重叠）
         top = QHBoxLayout()
-        top.addWidget(QLabel("会话"))
-        self.project_combo = QComboBox()
-        self.project_combo.setMinimumWidth(260)
-        self.project_combo.currentIndexChanged.connect(self._on_project_changed)
-        top.addWidget(self.project_combo)
-        new_btn = QPushButton("＋ 新对话")
-        new_btn.setObjectName("outlined")
+        top.setSpacing(6)
+        new_btn = QPushButton(icon_char("add"))
+        new_btn.setFont(icon_font(16))
+        new_btn.setObjectName("text")
+        new_btn.setFixedSize(34, 34)
+        new_btn.setToolTip("新建会话")
         new_btn.clicked.connect(self._new_project)
         top.addWidget(new_btn)
-        ingest_btn = QPushButton("📥 智能入库")
-        ingest_btn.setObjectName("outlined")
-        ingest_btn.setToolTip("上传文件（Excel/Word/PDF/文本），LLM 自动识别为产品清单或知识文档并入库")
+        self.project_combo = QComboBox()
+        self.project_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.project_combo.setMinimumWidth(120)
+        self.project_combo.setToolTip("切换会话（自动回放历史消息）")
+        self.project_combo.currentIndexChanged.connect(self._on_project_changed)
+        top.addWidget(self.project_combo, 1)
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItem("🧠 专家模式", "expert")
+        self.mode_combo.addItem("🤖 Agent 模式", "agent")
+        self.mode_combo.setFixedWidth(128)
+        self.mode_combo.setToolTip(
+            "专家模式：按售前流程逐项澄清后确认生成；\n"
+            "Agent 模式：模型可自主调用产品库/项目/记忆等工具完成需求"
+        )
+        top.addWidget(self.mode_combo)
+        ingest_btn = QPushButton(icon_char("upload"))
+        ingest_btn.setFont(icon_font(16))
+        ingest_btn.setObjectName("text")
+        ingest_btn.setFixedSize(34, 34)
+        ingest_btn.setToolTip("智能入库：上传文件（Excel/Word/PDF/文本），LLM 自动识别为产品库或知识库")
         ingest_btn.clicked.connect(self._ingest_file)
         top.addWidget(ingest_btn)
         self.ingest_target = QComboBox()
         self.ingest_target.addItem("自动识别", "auto")
         self.ingest_target.addItem("产品库", "products")
         self.ingest_target.addItem("知识库", "knowledge")
-        self.ingest_target.setFixedWidth(96)
+        self.ingest_target.setFixedWidth(84)
+        self.ingest_target.setToolTip("入库目标")
         top.addWidget(self.ingest_target)
-        refresh_btn = QPushButton("刷新")
-        refresh_btn.setObjectName("outlined")
-        refresh_btn.clicked.connect(self.refresh_projects)
-        top.addWidget(refresh_btn)
-        top.addSpacing(16)
-        top.addWidget(QLabel("模式"))
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItem("🧠 专家模式", "expert")
-        self.mode_combo.addItem("🤖 Agent 模式", "agent")
-        self.mode_combo.setToolTip(
-            "专家模式：按售前流程逐项澄清后确认生成；\n"
-            "Agent 模式：模型可自主调用产品库/项目/记忆等工具完成需求"
-        )
-        top.addWidget(self.mode_combo)
         top.addStretch(1)
         self.model_hint = QLabel("")
         self.model_hint.setObjectName("hint")
+        self.model_hint.setMaximumWidth(240)
+        self.model_hint.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         top.addWidget(self.model_hint)
         root.addLayout(top)
 

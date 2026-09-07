@@ -112,7 +112,41 @@ async def build_doc_from_llm(provider, slots: dict, devices: list[dict],
         ChatMessage("system", DOC_PROMPT),
         ChatMessage("user", user_msg),
     ], temperature=0.5)
-    return fill_docx_template(template_path,
-                              {"项目名称": slots.get("scene") or "音视频方案",
-                               "项目概述": _overview(slots),
-                               "方案正文": body}, out_path)
+    fill_docx_template(template_path,
+                       {"项目名称": slots.get("scene") or "音视频方案",
+                        "项目概述": _overview(slots),
+                        "方案正文": body}, out_path)
+    # 方案末尾确定性附加设备参数表（数据驱动，不依赖 LLM 自觉带参数）
+    try:
+        doc = Document(out_path)
+        _append_devices_table(doc, devices)
+        doc.save(out_path)
+    except Exception:
+        pass
+    return out_path
+
+
+def _append_devices_table(doc: Document, devices: list[dict]) -> None:
+    """在方案末尾追加「设备清单及技术参数」表格，保证规格/型号完整呈现。"""
+    doc.add_page_break()
+    doc.add_heading("设备清单及技术参数", level=1)
+    cols = ["序号", "设备名称", "规格/参数", "品牌", "型号", "数量", "单位", "备注"]
+    table = doc.add_table(rows=1, cols=len(cols))
+    table.style = "Table Grid"
+    for i, c in enumerate(cols):
+        table.rows[0].cells[i].text = c
+    for idx, d in enumerate(devices, start=1):
+        row = table.add_row().cells
+        values = [
+            str(idx),
+            d.get("type") or "",
+            d.get("spec") or "",
+            d.get("brand") or "",
+            d.get("model") or "",
+            str(d.get("qty") or ""),
+            d.get("unit") or "",
+            d.get("note") or "",
+        ]
+        for i, v in enumerate(values):
+            row[i].text = v
+    doc.add_paragraph("注：型号与规格以最终采购清单为准；价格详见报价单。")

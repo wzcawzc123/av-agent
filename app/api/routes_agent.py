@@ -64,6 +64,24 @@ def _memory_write(content: str) -> str:
 # ---------- 工具 ----------
 
 def _tool_products(q: str = "", brand: str = "") -> str:
+    """智能匹配优先：自然语言查询（如'300W 功放 8Ω'）走 rapidfuzz 匹配，带分数；否则 LIKE 兜底。"""
+    if q:
+        try:
+            from app.catalog.matcher import match_products
+
+            with get_session() as s:
+                matches = match_products(s, q, limit=5)
+            if matches:
+                lines = []
+                for m in matches:
+                    p = m["product"]
+                    lines.append(
+                        f"- {p['name']} | 型号 {p['model']} | {p['brand']} | 市场价 {p['market_price']}"
+                        f"（匹配 {m['score']:.0f} 分：{m['reason']}）"
+                    )
+                return "\n".join(lines)
+        except Exception:
+            pass  # 匹配失败退回 LIKE
     from sqlalchemy import or_
 
     with get_session() as s:

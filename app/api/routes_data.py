@@ -35,6 +35,17 @@ def update_product_price(product_id: int, body: ProductPriceIn):
         p.market_price = body.market_price
     return {"ok": True, "id": product_id}
 
+@router.get("/products/match")
+def match_products_api(q: str = "", limit: int = 8):
+    """参数智能匹配：任意自然语言（如 '300W 功放 8Ω'）→ top-k 匹配（分数+理由）。"""
+    from app.catalog.matcher import match_products as do_match
+
+    limit = max(1, min(int(limit), 20))
+    with get_session() as s:
+        matches = do_match(s, q, limit=limit)
+    return {"q": q, "matches": matches}
+
+
 @router.get("/products")
 def list_products(q: str = "", brand: str = "", category: str = ""):
     with get_session() as s:

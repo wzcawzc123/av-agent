@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from desktop.api import AvApi
 from desktop.worker import ApiCallThread, run_api
 
-COLUMNS = ["ID", "名称", "型号", "品牌", "分类", "描述", "底价", "市场价"]
+COLUMNS = ["ID", "名称", "型号", "品牌", "分类", "描述", "底价", "市场价", "匹配(分/理由)"]
 
 
 class ProductsPage(QWidget):
@@ -42,16 +42,20 @@ class ProductsPage(QWidget):
         root.addWidget(title)
 
         bar = QHBoxLayout()
+        bar.addWidget(QLabel("智能匹配"))
+        self.match_input = QLineEdit()
+        self.match_input.setPlaceholderText("输入任意参数，如：300W 功放 8Ω / P2 LED 屏 / 无线话筒")
+        self.match_input.returnPressed.connect(self._smart_match)
+        bar.addWidget(self.match_input, 2)
+        match_btn = QPushButton("匹配")
+        match_btn.setObjectName("outlined")
+        match_btn.clicked.connect(self._smart_match)
+        bar.addWidget(match_btn)
         bar.addWidget(QLabel("关键词"))
         self.q_input = QLineEdit()
         self.q_input.setPlaceholderText("名称 / 型号 / 品牌")
         self.q_input.returnPressed.connect(self._search)
         bar.addWidget(self.q_input, 1)
-        bar.addWidget(QLabel("品牌"))
-        self.brand_input = QLineEdit()
-        self.brand_input.setFixedWidth(140)
-        self.brand_input.returnPressed.connect(self._search)
-        bar.addWidget(self.brand_input)
         search_btn = QPushButton("搜索")
         search_btn.setObjectName("outlined")
         search_btn.clicked.connect(self._search)
@@ -86,12 +90,34 @@ class ProductsPage(QWidget):
 
     def _search(self) -> None:
         q = self.q_input.text().strip()
-        brand = self.brand_input.text().strip()
         run_api(
             self, self._threads,
-            lambda: self.api.list_products(q=q, brand=brand),
+            lambda: self.api.list_products(q=q),
             self._load,
         )
+
+    def _smart_match(self) -> None:
+        q = self.match_input.text().strip()
+        if not q:
+            return
+        run_api(self, self._threads, lambda: self.api.products_match(q, limit=8), self._load_match)
+
+    def _load_match(self, data: dict) -> None:
+        matches = data.get("matches", [])
+        self.table.setRowCount(len(matches))
+        for i, m in enumerate(matches):
+            p = m.get("product", {})
+            vals = [
+                p.get("id", ""), p.get("name", ""), p.get("model", ""),
+                p.get("brand", ""), p.get("category", ""), p.get("description", ""),
+                p.get("base_price", ""), p.get("market_price", ""),
+                f"{m.get('score', 0):.0f} 分 · {m.get('reason', '')}",
+            ]
+            for j, v in enumerate(vals):
+                item = QTableWidgetItem("" if v is None else str(v))
+                if j == 0:
+                    item.setData(Qt.UserRole, p.get("id"))
+                self.table.setItem(i, j, item)
 
     def _load(self, products: list[dict]) -> None:
         self.table.setRowCount(len(products))

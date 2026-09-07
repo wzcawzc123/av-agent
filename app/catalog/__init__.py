@@ -126,12 +126,27 @@ def search_products(session, system: str = "", role: str = "", brand: list[str] 
 
 
 def backfill_role(session, system: str, role: str, brand_list: list[str] | None) -> dict | None:
-    """为单个设备角色回填产品；优先 系统x角色x品牌，逐级回退到 角色x品牌 / 角色。"""
+    """为单个设备角色回填产品；优先 系统x角色x品牌，逐级回退到 角色x品牌 / 角色。
+
+    LIKE 全部无果时用 rapidfuzz 智能匹配兜底（角色名 → 产品名称/型号模糊匹配）。
+    """
     cands = search_products(session, system=system, role=role, brand=brand_list, limit=10)
     if not cands:
         cands = search_products(session, system="", role=role, brand=brand_list, limit=10)
     if not cands and brand_list:
         cands = search_products(session, system="", role=role, brand=None, limit=10)
-    if not cands:
-        return None
-    return cands[0]
+    if cands:
+        return cands[0]
+    # rapidfuzz 兜底：角色名（如"主扩音箱"）模糊匹配产品
+    try:
+        from app.catalog.matcher import match_products
+
+        ms = match_products(session, role or "", limit=5)
+        if ms and ms[0]["score"] >= 55:
+            m = ms[0]["product"]
+            return {k: m.get(k, "") for k in
+                    ("name", "model", "brand", "base_price", "market_price",
+                     "category", "system", "params_json", "description")}
+    except Exception:
+        pass
+    return None

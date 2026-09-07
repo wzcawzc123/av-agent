@@ -155,6 +155,10 @@ class AvApi:
     def list_products(self, q: str = "", brand: str = "", category: str = "") -> list[dict]:
         return self._get("/api/products", q=q, brand=brand, category=category)
 
+    def products_match(self, q: str, limit: int = 8) -> dict:
+        """参数智能匹配：自然语言 → top-k（带分数与理由）。"""
+        return self._get("/api/products/match", q=q, limit=limit)
+
     def upload_products(self, file_path: str) -> dict:
         with open(file_path, "rb") as f:
             try:

@@ -195,7 +195,9 @@ class ChatPage(QWidget):
         root.addLayout(input_row)
 
         self.refresh_projects()
-        self._append_message("system", "你好，我是音视频售前工作流 Agent。描述你的项目需求，我会逐项澄清并生成方案文档。")
+        self._append_message("system", "你好，我是音视频售前工作流 Agent。描述你的项目需求（如：600 平体育馆，扩声用惠威），"
+                                        "我会逐项澄清并按你的产品库/配置模板生成设计方案、文字方案、偏离表与 PPT。"
+                                        "也可以先点顶部「📤」上传公司产品库 Excel、配置模板或案例文档，我会自动识别入库。")
 
     # ---------- 会话管理 ----------
 

@@ -235,6 +235,69 @@ def create_template_from_bom(body: BomTemplateIn):
         return {"id": c.id}
 
 
+@router.post("/templates/ingest")
+async def ingest_config_template(
+    file: UploadFile = File(...),
+    name: str = Form(""),
+    area: int = Form(0),
+    scene: str = Form(""),
+    config_level: str = Form(""),
+):
+    """智能上传配置模板：上传 100 平会议室配置表(Excel/Word/PDF/文本)，
+    LLM 自动解析面积/场景/系统/设备行 → 存为 ConfigTemplate，按面积场景参与选型。"""
+    from app.ingest.classifier import _clean_json
+    from app.ingest.extractor import extract_text
+    from app.config import settings
+    from app.llm.base import ChatMessage
+    from app.llm.prompts import INGEST_CONFIG_PROMPT
+    from app.llm.registry import get_provider, load_model_config
+
+    cfg = load_model_config()
+    if not cfg.get("provider") or not cfg.get("api_key"):
+        return {"ok": False, "need_config": True,
+                "message": "尚未配置模型。请先到「模型提供商」页配置 API Key。"}
+    provider = get_provider(cfg)
+    if hasattr(provider, "__await__"):
+        provider = await provider
+
+    ext = os.path.splitext(file.filename or "config.xlsx")[1].lower()
+    tmp_path = os.path.join(settings.UPLOAD_DIR, f"cfg_{uuid.uuid4().hex[:8]}{ext}")
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    with open(tmp_path, "wb") as f:
+        f.write(await file.read())
+    try:
+        text = extract_text(tmp_path)
+        if not text or text.startswith("（"):
+            return {"ok": False, "message": text or "文件内容为空"}
+        resp = await provider.chat(
+            [
+                ChatMessage("system", INGEST_CONFIG_PROMPT),
+                ChatMessage("user", f"配置文档（{file.filename or '配置表'}）：\n{text[:16000]}"),
+            ],
+            temperature=0.1,
+        )
+        data = _clean_json(resp) or {}
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    rows = [r for r in (data.get("rows") or []) if isinstance(r, dict) and r.get("type")]
+    t_area = area or int(data.get("area") or 0)
+    t_scene = scene or str(data.get("scene") or "").strip()
+    if not t_area or not t_scene or not rows:
+        return {"ok": False, "message": "未能从配置文档中解析出面积/场景/设备行，请检查文档格式后重试。"}
+
+    systems = data.get("systems") or []
+    tpl_name = name or f"{t_scene} {t_area}㎡配置模板"
+    with get_session() as s:
+        c = save_config_template(s, tpl_name, int(t_area), t_scene,
+                                 {"rows": rows}, systems=systems or None,
+                                 config_level=config_level or str(data.get("config_level") or ""))
+    return {"ok": True, "id": c.id, "name": tpl_name, "area": int(t_area), "scene": t_scene,
+            "systems": systems, "rows": len(rows),
+            "message": f"配置模板已入库：{t_scene} {t_area}㎡，{len(rows)} 行设备"}
+
+
 @router.get("/templates/{template_id}/bom")
 def get_template_bom(template_id: int, type: str = "config"):
     """读取配置模板的 BOM 行（应用模板时前端载入）。"""

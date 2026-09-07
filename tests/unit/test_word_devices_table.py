@@ -2,7 +2,6 @@
 
 import asyncio
 
-import pytest
 from docx import Document
 
 
@@ -49,3 +48,35 @@ def test_word_contains_devices_table(tmp_path):
     assert "2×250W@8Ω" in cells_text
     # 配件也入表
     assert "2×1.5mm²" in cells_text
+
+
+def test_word_placeholder_inserts_table_at_position(tmp_path):
+    """模板含 {{设备参数表}} 占位符时，表格插入占位位置而非文档末尾。"""
+    from docx import Document as _D
+
+    tpl = tmp_path / "tpl.docx"
+    t = _D()
+    t.add_paragraph("{{项目名称}}")
+    t.add_paragraph("这是正文占位")
+    t.add_paragraph("{{设备参数表}}")
+    t.add_paragraph("结尾段落")
+    t.save(tpl)
+
+    devices = [
+        {"type": "专业音箱", "spec": "8寸", "brand": "MAXHUB", "model": "AV-8A",
+         "qty": 2, "unit": "只", "note": ""},
+    ]
+    from app.generators.word_generator import fill_docx_template
+
+    out = str(tmp_path / "out.docx")
+    fill_docx_template(str(tpl), {"项目名称": "测试方案", "方案正文": "正文"}, out, devices=devices)
+    doc = Document(out)
+    texts = [p.text for p in doc.paragraphs]
+    # 占位符被表格替换，正文与结尾段落仍在
+    assert "测试方案" in texts
+    assert "结尾段落" in texts
+    assert "{{设备参数表}}" not in texts
+    # 表格存在且含设备
+    assert len(doc.tables) >= 1
+    cells = "\n".join(c.text for row in doc.tables[0].rows for c in row.cells)
+    assert "AV-8A" in cells and "8寸" in cells

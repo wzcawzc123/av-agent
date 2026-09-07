@@ -1,5 +1,4 @@
 """LLM 精修层测试（monkeypatch 模拟 LLM 返回 + 降级路径）。"""
-import pytest
 
 from app.engines.tender import llm_pick
 from app.engines.tender.model import TenderMatchRow

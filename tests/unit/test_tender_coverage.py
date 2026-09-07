@@ -1,5 +1,4 @@
 """能力覆盖合并检测测试。"""
-import json
 
 import pytest
 from sqlalchemy import create_engine

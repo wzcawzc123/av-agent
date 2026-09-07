@@ -3,7 +3,7 @@ import json
 import pytest
 
 from app.db.session import get_engine, get_session
-from app.db.models import Base, Product, ConfigTemplate
+from app.db.models import Base, ConfigTemplate
 from app.generators.pipeline import generate_deliverables
 
 

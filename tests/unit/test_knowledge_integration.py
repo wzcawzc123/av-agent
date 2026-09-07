@@ -1,7 +1,6 @@
 """知识库接入 chat 流程：parse_intent context_docs 参数传递验证。"""
 import json
 import asyncio
-import pytest
 
 
 def test_parse_intent_injects_context_docs(monkeypatch):

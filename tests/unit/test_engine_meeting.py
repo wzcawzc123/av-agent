@@ -1,7 +1,7 @@
 """会议选型引擎：codec 编码解析 / 选型规则种子 / 选型主逻辑"""
 from app.db.models import Base, Product, SelectionRule
 from app.db.session import get_engine, get_session
-from app.engines.meeting.codec import MeetingParams, parse_code
+from app.engines.meeting.codec import parse_code
 from app.engines.meeting.rules import seed_selection_rules
 from app.engines.meeting.selector import select_devices
 

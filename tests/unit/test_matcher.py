@@ -3,7 +3,6 @@
 import pytest
 
 from app.catalog.matcher import (
-    BRAND_ALIASES,
     _core_term,
     extract_specs,
     match_products,

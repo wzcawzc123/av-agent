@@ -3,7 +3,6 @@ from app.engines.tender.dimensions import (
     DIM_WEIGHTS,
     extract_dims,
     match_distance,
-    dim_distance,
 )
 
 

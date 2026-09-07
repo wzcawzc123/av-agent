@@ -1,6 +1,6 @@
 """会议引擎配置级扩展：高/中/低配 + 话筒段 + 天线段。"""
 from app.db.session import get_session, get_engine
-from app.db.models import Base, Product, SelectionRule
+from app.db.models import Base, Product
 from app.engines.meeting.codec import parse_code
 from app.engines.meeting.rules import seed_selection_rules
 from app.engines.meeting.selector import select_devices

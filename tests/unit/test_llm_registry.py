@@ -1,6 +1,6 @@
 import pytest
 
-from app.llm.base import ChatMessage, LLMProvider
+from app.llm.base import LLMProvider
 from app.llm.registry import (
     PROVIDER_NAMES,
     save_model_config,

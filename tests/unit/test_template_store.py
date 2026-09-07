@@ -1,7 +1,7 @@
 import pytest
 
 from app.db.session import get_engine, get_session
-from app.db.models import Base, Template, ConfigTemplate
+from app.db.models import Base
 from app.db.template_store import save_template, save_config_template, find_config_template
 
 

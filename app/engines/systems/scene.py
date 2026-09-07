@@ -77,6 +77,14 @@ def infer_systems(slots: dict) -> list[str]:
         return ["display", "distributed", "control", "prosound"]
     if "报告厅" in scene or "礼堂" in scene or "剧场" in scene:
         return ["prosound", "speech", "display", "lighting"]
+    if "体育馆" in scene or "操场" in scene or "体育场" in scene or "篮球" in scene or "羽毛球" in scene:
+        return ["prosound", "display", "lighting", "broadcast"]
+    if "宴会厅" in scene or "婚礼" in scene or "酒楼" in scene:
+        return ["prosound", "speech", "display", "lighting", "broadcast"]
+    if "大堂" in scene or "前厅" in scene or "接待厅" in scene:
+        return ["prosound", "display", "broadcast"]
+    if "演播厅" in scene or "录播" in scene or "直播间" in scene:
+        return ["prosound", "speech", "display", "videoconf", "distributed"]
     if "会议室" in scene or "圆桌" in scene or "阶梯" in scene or "培训" in scene:
         return ["prosound", "speech", "display", "paperless"]
     return ["prosound", "speech", "display"]

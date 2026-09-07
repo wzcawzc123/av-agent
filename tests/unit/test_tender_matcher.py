@@ -10,7 +10,6 @@ from app.engines.tender import store
 from app.engines.tender.matcher import (
     brand_pool,
     brand_seen,
-    find_candidates,
     match_item,
     match_items,
 )

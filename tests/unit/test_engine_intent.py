@@ -1,5 +1,4 @@
 """对话 → 引擎意图检测：规则匹配，不依赖 LLM。"""
-import pytest
 
 from app.engines.intent.detect import detect_engine_intent
 

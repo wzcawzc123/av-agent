@@ -219,6 +219,23 @@ class AvApi:
             raise ApiError(resp.text[:200], status=resp.status_code)
         return resp.json()
 
+    def templates_ingest(self, file_path: str, name: str = "", area: int = 0,
+                         scene: str = "", config_level: str = "") -> dict:
+        """智能上传配置模板：LLM 解析面积/场景/系统/设备行，存为 ConfigTemplate。"""
+        with open(file_path, "rb") as f:
+            try:
+                resp = self._client.post(
+                    "/api/templates/ingest",
+                    files={"file": (os.path.basename(file_path), f)},
+                    data={"name": name, "area": str(area), "scene": scene,
+                          "config_level": config_level},
+                )
+            except httpx.HTTPError as e:
+                raise ApiError(f"上传失败：{e}") from e
+        if resp.status_code >= 400:
+            raise ApiError(resp.text[:200], status=resp.status_code)
+        return resp.json()
+
     def delete_template(self, template_id: int) -> dict:
         return self._delete(f"/api/templates/{template_id}")
 

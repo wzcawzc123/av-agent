@@ -30,7 +30,8 @@ def _split_body(body: str) -> list[tuple[str, str]]:
     return out
 
 
-def fill_docx_template(template_path: str | None, replacements: dict, out_path: str) -> str:
+def fill_docx_template(template_path: str | None, replacements: dict, out_path: str,
+                       devices: list[dict] | None = None) -> str:
     pattern = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
     if template_path:
@@ -43,6 +44,16 @@ def fill_docx_template(template_path: str | None, replacements: dict, out_path: 
 
     for para in list(doc.paragraphs):
         text = para.text
+        if "{{设备参数表}}" in text and devices:
+            # 在占位符段落位置插入设备参数表（标题 + 表格）
+            anchor = para
+            head = doc.add_paragraph("设备清单及技术参数")
+            head.style = doc.styles["Heading 1"]
+            anchor._p.addnext(head._p)
+            table = _build_devices_table(doc, devices)
+            head._p.addnext(table._tbl)
+            para._p.getparent().remove(para._p)
+            continue
         if "{{方案正文}}" in text:
             body = str(replacements.get("方案正文", ""))
             if body:
@@ -115,21 +126,22 @@ async def build_doc_from_llm(provider, slots: dict, devices: list[dict],
     fill_docx_template(template_path,
                        {"项目名称": slots.get("scene") or "音视频方案",
                         "项目概述": _overview(slots),
-                        "方案正文": body}, out_path)
-    # 方案末尾确定性附加设备参数表（数据驱动，不依赖 LLM 自觉带参数）
+                        "方案正文": body}, out_path, devices=devices)
+    # 模板无 {{设备参数表}} 占位符时，方案末尾确定性附加设备参数表（数据驱动）
     try:
         doc = Document(out_path)
-        _append_devices_table(doc, devices)
-        doc.save(out_path)
+        has_placeholder_table = any(
+            "设备清单及技术参数" in p.text for p in doc.paragraphs)
+        if not has_placeholder_table and devices:
+            _append_devices_table(doc, devices)
+            doc.save(out_path)
     except Exception:
         pass
     return out_path
 
 
-def _append_devices_table(doc: Document, devices: list[dict]) -> None:
-    """在方案末尾追加「设备清单及技术参数」表格，保证规格/型号完整呈现。"""
-    doc.add_page_break()
-    doc.add_heading("设备清单及技术参数", level=1)
+def _build_devices_table(doc: Document, devices: list[dict]):
+    """构建「设备清单及技术参数」表格（python-docx table 对象，供占位符插入）。"""
     cols = ["序号", "设备名称", "规格/参数", "品牌", "型号", "数量", "单位", "备注"]
     table = doc.add_table(rows=1, cols=len(cols))
     table.style = "Table Grid"
@@ -149,4 +161,12 @@ def _append_devices_table(doc: Document, devices: list[dict]) -> None:
         ]
         for i, v in enumerate(values):
             row[i].text = v
+    return table
+
+
+def _append_devices_table(doc: Document, devices: list[dict]) -> None:
+    """在方案末尾追加「设备清单及技术参数」表格，保证规格/型号完整呈现。"""
+    doc.add_page_break()
+    doc.add_heading("设备清单及技术参数", level=1)
+    table = _build_devices_table(doc, devices)
     doc.add_paragraph("注：型号与规格以最终采购清单为准；价格详见报价单。")

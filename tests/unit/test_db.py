@@ -1,5 +1,5 @@
 from app.db.session import get_engine, get_session
-from app.db.models import Base, Product, Project, Setting
+from app.db.models import Base, Product
 
 
 def test_engine_creates_tables(tmp_path):

@@ -105,6 +105,17 @@ INGEST_KNOWLEDGE_PROMPT = """你是知识整理专家。把下面文档内容整
 
 规则：excerpt 要提炼关键事实（参数、配置、流程、要点），不要空话；标题简洁贴合内容。只输出 JSON。"""
 
+INGEST_CONFIG_PROMPT = """你是音视频系统配置专家。从下面配置文档中提取常规配置模板，只输出 JSON。
+
+输出：{"area": 适用面积数字, "scene": "场景（如 会议室/报告厅/体育馆）", "config_level": "低配|中配|高配", "systems": ["prosound","speech","display",...], "rows": [{"system":"prosound","type":"专业音箱","spec":"10寸 壁挂","brand":"","model":"","qty":4,"unit":"只","note":""}]}
+
+规则：
+1. area 必填（数字平方米）；scene 必填；无明确数值时按文档表述推断（如"100 平米"→100）。
+2. systems 用系统 code：prosound 扩声 / speech 发言 / display 显示 / control 中控矩阵 / paperless 无纸化 / distributed 分布式 / lighting 灯光 / broadcast 广播 / videoconf 视频会议。
+3. rows 每项为一台/一类设备，type 为设备类型名，spec 为规格参数，qty 数量，unit 单位；原文没有的字段填空字符串/1/台。
+4. 严格按原文提取，禁止编造型号；品牌/型号可留空。
+5. 只输出 JSON，不要解释。"""
+
 PPT_PROMPT = """你是售前演示专家。根据设备清单与方案生成 PPT 大纲，输出 JSON：{"slides": [{"title":"","bullets":[]}]}。只输出 JSON。"""
 
 DEV_ENHANCE_PROMPT = """你是音视频售前工程师，负责核对投标偏离表。下面给出招标参数与我方产品参数，判断我方产品是否满足招标要求，只输出 JSON：

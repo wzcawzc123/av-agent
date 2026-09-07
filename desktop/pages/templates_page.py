@@ -43,6 +43,14 @@ class TemplatesPage(QWidget):
         upload_btn = QPushButton("上传模板文件")
         upload_btn.clicked.connect(self._upload)
         bar.addWidget(upload_btn)
+        ingest_cfg_btn = QPushButton("📐 上传配置模板")
+        ingest_cfg_btn.setObjectName("outlined")
+        ingest_cfg_btn.setToolTip(
+            "上传 100/150/200 平… 会议室配置表（Excel/Word/PDF），LLM 自动解析面积/场景/系统/设备行入库，"
+            "生成方案时按面积+场景自动匹配"
+        )
+        ingest_cfg_btn.clicked.connect(self._ingest_config)
+        bar.addWidget(ingest_cfg_btn)
         bar.addWidget(QLabel("匹配测试"))
         self.match_scene = QLineEdit()
         self.match_scene.setPlaceholderText("场景，如：会议室")
@@ -115,6 +123,64 @@ class TemplatesPage(QWidget):
             self, "匹配结果",
             f"匹配到模板 #{tid}\n类型：{data.get('type', '')}\n路径：{data.get('file_path', '')}",
         )
+
+    def _ingest_config(self) -> None:
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QSpinBox
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("上传配置模板（LLM 智能解析）")
+        dlg.setMinimumWidth(420)
+        form = QFormLayout(dlg)
+        path_edit = QLineEdit()
+        path_edit.setReadOnly(True)
+        browse = QPushButton("选择文件…")
+        browse.setObjectName("outlined")
+
+        def pick():
+            p, _ = QFileDialog.getOpenFileName(
+                dlg, "选择配置表", "", "配置表 (*.xlsx *.xlsm *.xls *.docx *.pdf *.txt *.md)")
+            if p:
+                path_edit.setText(p)
+
+        browse.clicked.connect(pick)
+        row = QHBoxLayout()
+        row.addWidget(path_edit, 1)
+        row.addWidget(browse)
+        form.addRow("配置文件", row)
+        name_edit = QLineEdit()
+        name_edit.setPlaceholderText("如：100㎡会议室常规配置（可留空自动命名）")
+        form.addRow("模板名称", name_edit)
+        area_spin = QSpinBox()
+        area_spin.setRange(0, 100000)
+        area_spin.setSuffix(" ㎡")
+        area_spin.setSpecialValueText("自动识别")
+        form.addRow("面积", area_spin)
+        scene_edit = QLineEdit()
+        scene_edit.setPlaceholderText("如：会议室（可留空自动识别）")
+        form.addRow("场景", scene_edit)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        form.addRow(buttons)
+        if dlg.exec() != QDialog.Accepted or not path_edit.text():
+            return
+        run_api(
+            self, self._threads,
+            lambda: self.api.templates_ingest(
+                path_edit.text(), name=name_edit.text().strip(),
+                area=area_spin.value(), scene=scene_edit.text().strip()),
+            self._on_ingested,
+        )
+
+    def _on_ingested(self, data: dict) -> None:
+        if data.get("need_config"):
+            QMessageBox.warning(self, "提示", data.get("message", "请先配置模型。"))
+            return
+        if not data.get("ok"):
+            QMessageBox.warning(self, "解析失败", data.get("message", "未知错误"))
+            return
+        QMessageBox.information(self, "完成", data.get("message", "已入库"))
+        self.on_show()
 
     def _upload(self) -> None:
         path, _ = QFileDialog.getOpenFileName(

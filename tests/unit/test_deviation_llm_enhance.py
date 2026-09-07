@@ -1,5 +1,4 @@
 """偏离表 LLM 增强通道测试：真实调用路径 + 降级路径。"""
-import pytest
 
 from app.engines.deviation import llm_enhance
 from app.engines.deviation.model import MatchResult

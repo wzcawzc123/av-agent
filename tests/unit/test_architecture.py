@@ -1,5 +1,4 @@
 """P0 架构新增模块单测：系统目录/品牌约束/角色引擎/composer 无 LLM 链路。"""
-import json
 
 import pytest
 

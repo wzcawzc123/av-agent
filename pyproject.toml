@@ -1,6 +1,6 @@
 [project]
 name = "av-agent"
-version = "1.3.3"
+version = "1.3.4"
 description = "音视频售前工作流 Agent：对话式需求采集 + 大模型适配 + 文档生成 + 招标改单"
 requires-python = ">=3.12"
 

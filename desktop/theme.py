@@ -21,58 +21,60 @@ _FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "
 
 _current_dark: bool = True  # Codex 风格以深色为默认
 
-# ---------- 色板 ----------
+# ---------- MIUIX 官方色板(compose-miuix-ui/miuix 0.9.4 源码 Colors.kt) ----------
 
 DARK_SCHEME = {
-    "bg": "#0D0D0D",            # 最外层背景
-    "surface": "#141414",       # 侧栏/卡片
-    "raised": "#1A1A1A",        # 输入框/表格/凸起控件
-    "hover": "#1F1F1F",         # 悬停
-    "active": "#262626",        # 选中/按压
-    "border": "#2A2A2A",
-    "border_strong": "#3D3D3D",
-    "text": "#ECECEC",
-    "text_secondary": "#9CA3AF",
-    "text_muted": "#6B7280",
-    "accent": "#10A37F",        # ChatGPT 品牌绿
-    "accent_hover": "#2AB894",
+    "bg": "#242424",            # background
+    "surface": "#000000",       # surface（深色）
+    "raised": "#242424",        # surfaceContainer
+    "hover": "#2D2D2D",         # surfaceContainerHighest
+    "active": "#2D2D2D",
+    "border": "#404040",        # outline
+    "border_strong": "#505050",
+    "text": "#F2F2F2",          # onSurface
+    "text_secondary": "#99C7F1",
+    "text_muted": "#959595",
+    "accent": "#277AF7",        # primary
+    "accent_hover": "#338FE4",  # primaryContainer
     "accent_fg": "#FFFFFF",
-    "accent_soft": "#12211C",   # accent 低饱和底
-    "code_bg": "#0A0A0A",
-    "user_bubble": "#2A2A2A",
-    "error": "#EF4444",
-    "error_soft": "#2A1414",
-    "warn": "#F59E0B",
-    "warn_soft": "#2A2114",
-    "ok": "#34D399",
-    "ok_soft": "#12211C",
-    "scrollbar": "#3A3A3A",
+    "accent_soft": "#253E64",   # 低饱和蓝底
+    "code_bg": "#000000",
+    "user_bubble": "#242424",
+    "error": "#F12522",
+    "error_soft": "#2E0603",
+    "warn": "#E94634",
+    "warn_soft": "#2E0603",
+    "ok": "#99C7F1",
+    "ok_soft": "#253E64",
+    "scrollbar": "#404040",
+    "divider": "#393939",       # dividerLine
 }
 
 LIGHT_SCHEME = {
-    "bg": "#FFFFFF",
-    "surface": "#F7F7F8",
-    "raised": "#FFFFFF",
-    "hover": "#F0F0F1",
-    "active": "#E8E8EA",
-    "border": "#E5E5E5",
-    "border_strong": "#D0D0D4",
-    "text": "#0D0D0D",
-    "text_secondary": "#6B7280",
-    "text_muted": "#9CA3AF",
-    "accent": "#10A37F",
-    "accent_hover": "#0E8F6F",
+    "bg": "#F7F7F7",            # background / surface（浅灰 MIUI 底）
+    "surface": "#FFFFFF",       # 卡片白
+    "raised": "#F7F7F7",
+    "hover": "#E8E8E8",         # surfaceContainerHighest
+    "active": "#E8E8E8",
+    "border": "#D9D9D9",        # outline
+    "border_strong": "#B2B2B2",
+    "text": "#000000",          # onSurface
+    "text_secondary": "#8C93B0",# onBackgroundVariant
+    "text_muted": "#959595",
+    "accent": "#3482FF",        # primary
+    "accent_hover": "#5D9BFF",  # primaryContainer
     "accent_fg": "#FFFFFF",
-    "accent_soft": "#E6F4EF",
-    "code_bg": "#F5F5F5",
-    "user_bubble": "#EFEFEF",
-    "error": "#DC2626",
-    "error_soft": "#FDEBEB",
-    "warn": "#B45309",
-    "warn_soft": "#FDF3E3",
-    "ok": "#059669",
-    "ok_soft": "#E6F4EF",
-    "scrollbar": "#D0D0D4",
+    "accent_soft": "#EAF2FF",   # tertiaryContainer
+    "code_bg": "#F7F7F7",
+    "user_bubble": "#FFFFFF",
+    "error": "#E94634",
+    "error_soft": "#FDF6F4",
+    "warn": "#E94634",
+    "warn_soft": "#FDF6F4",
+    "ok": "#3482FF",
+    "ok_soft": "#EAF2FF",
+    "scrollbar": "#D9D9D9",
+    "divider": "#E0E0E0",       # dividerLine
 }
 
 _SCHEMES = {"dark": DARK_SCHEME, "light": LIGHT_SCHEME}
@@ -151,7 +153,7 @@ QListWidget#navList {{
     font-size: 13px; outline: 0; padding-top: 4px;
 }}
 QListWidget#navList::item {{
-    height: 36px; padding-left: 14px; border-radius: 8px; margin: 1px 8px;
+    height: 36px; padding-left: 14px; border-radius: 20px; margin: 2px 10px;
     color: {s['text_secondary']};
 }}
 QListWidget#navList::item:hover {{ background: {s['hover']}; color: {s['text']}; }}
@@ -159,25 +161,25 @@ QListWidget#navList::item:selected {{ background: {s['active']}; color: {s['text
 
 /* 按钮（Codex 式：绿主操作 / 灰次要） */
 QPushButton {{
-    background: {s['accent']}; color: {s['accent_fg']}; border: none; border-radius: 8px;
+    background: {s['accent']}; color: {s['accent_fg']}; border: none; border-radius: 21px;
     padding: 7px 16px; font-family: 'Roboto'; font-weight: 500; font-size: 13px;
 }}
 QPushButton:hover {{ background: {s['accent_hover']}; }}
 QPushButton:pressed {{ background: {s['accent']}; }}
 QPushButton:disabled {{ background: {s['active']}; color: {s['text_muted']}; }}
 QPushButton#outlined {{
-    background: transparent; color: {s['text']}; border: 1px solid {s['border_strong']}; border-radius: 8px;
+    background: transparent; color: {s['text']}; border: 1px solid {s['border_strong']}; border-radius: 21px;
 }}
 QPushButton#outlined:hover {{ background: {s['hover']}; }}
 QPushButton#outlined:pressed {{ background: {s['active']}; }}
-QPushButton#text {{ background: transparent; color: {s['text_secondary']}; border: none; border-radius: 8px; }}
+QPushButton#text {{ background: transparent; color: {s['text_secondary']}; border: none; border-radius: 21px; }}
 QPushButton#text:hover {{ background: {s['hover']}; color: {s['text']}; }}
-QPushButton#danger {{ background: transparent; color: {s['error']}; border: 1px solid {s['border_strong']}; border-radius: 8px; }}
+QPushButton#danger {{ background: transparent; color: {s['error']}; border: 1px solid {s['border_strong']}; border-radius: 21px; }}
 QPushButton#danger:hover {{ background: {s['error_soft']}; }}
 
 /* 输入（Codex 式圆角输入框） */
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
-    background: {s['raised']}; border: 1px solid {s['border']}; border-radius: 10px;
+    background: {s['raised']}; border: 1px solid {s['border']}; border-radius: 14px;
     padding: 8px 12px; selection-background-color: {s['accent_soft']};
     selection-color: {s['text']}; font-family: 'Roboto'; font-size: 13px;
 }}
@@ -187,12 +189,12 @@ QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QComboBox:focus {{
 QComboBox::drop-down {{ border: none; width: 24px; }}
 QComboBox QAbstractItemView {{
     background: {s['surface']}; color: {s['text']};
-    border: 1px solid {s['border']}; border-radius: 8px; selection-background-color: {s['active']};
+    border: 1px solid {s['border']}; border-radius: 14px; selection-background-color: {s['active']};
 }}
 
 /* 表格 */
 QTableWidget {{
-    background: {s['surface']}; border: 1px solid {s['border']}; border-radius: 10px;
+    background: {s['surface']}; border: 1px solid {s['border']}; border-radius: 20px;
     gridline-color: {s['border']}; selection-background-color: {s['active']};
     selection-color: {s['text']}; font-family: 'Roboto';
 }}
@@ -216,10 +218,10 @@ QScrollArea {{ border: none; background: transparent; }}
 QMessageBox, QDialog {{ background: {s['surface']}; }}
 QMessageBox QLabel, QDialog QLabel {{ color: {s['text']}; }}
 QProgressBar {{
-    border: none; border-radius: 4px; background: {s['raised']};
+    border: none; border-radius: 8px; background: {s['raised']};
     text-align: center; color: {s['text_secondary']}; height: 6px;
 }}
-QProgressBar::chunk {{ background: {s['accent']}; border-radius: 4px; }}
+QProgressBar::chunk {{ background: {s['accent']}; border-radius: 8px; }}
 QStatusBar {{ background: {s['surface']}; border-top: 1px solid {s['border']}; color: {s['text_muted']}; }}
 QTextBrowser {{
     background: transparent; border: none; padding: 2px; color: {s['text']}; font-family: 'Roboto';
